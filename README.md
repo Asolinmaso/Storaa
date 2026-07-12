@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Storaa — Auth
 
-## Getting Started
+Next.js (App Router, TypeScript) authentication app for Storaa: login, signup, role selection, password reset, and a protected dashboard, backed by MongoDB.
 
-First, run the development server:
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in MONGODB_URI and JWT_SECRET
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 — you'll be redirected to `/login`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Pages**: `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/select-role`, `/dashboard` (protected)
+- **API**: `POST /api/auth/register | login | logout | role | forgot-password | reset-password`, `GET /api/auth/me`
+- Passwords hashed with **bcrypt** (12 rounds); reset codes hashed and single-use with 15-minute expiry
+- **JWT sessions** (jose, HS256) in an `httpOnly` cookie, 7-day expiry
+- **Middleware** protects `/dashboard` and `/select-role`, and redirects authenticated users away from `/login` / `/signup`
+- Duplicate registration blocked (unique email index + `ACCOUNT_EXISTS` handling)
+- Error dialogs matching the design: Account Not Found, Account Already Found, Account Blocked
+- Client + server validation, loading spinners, and friendly error banners
+- Fully responsive (desktop / tablet / mobile)
 
-## Learn More
+## Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/            pages + API route handlers
+components/     reusable UI (AuthLayout, TextField, Button, Modal, …)
+lib/            db connection, auth (JWT/cookies), validation
+models/         Mongoose User model
+middleware.ts   route protection
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The password reset code is currently logged to the server console (`[Storaa] Password reset code for …`) — wire up an email provider in `app/api/auth/forgot-password/route.ts` for production.
+- "Login with Google" is a UI placeholder; add an OAuth provider to enable it.
