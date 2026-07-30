@@ -66,6 +66,19 @@ input {
   user-select: none;
 }
 
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+
+.logo-img {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+}
+
+
 .logo-sm {
   font-size: 2.25rem;
 }
@@ -1881,6 +1894,7 @@ input {
   .card-grid-5 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+
   .category-row,
   .category-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1894,96 +1908,123 @@ input {
     gap: 2.5rem;
     align-items: center;
   }
+
   .cust-logo {
     font-size: 1.5rem;
   }
+
   .cust-nav-item span {
     display: none;
   }
+
   .cust-nav-item {
     justify-content: center;
     padding: 0.85rem;
   }
+
   .home-hero {
     grid-template-columns: 1fr;
   }
+
   .card-grid-5 {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
   .store-detail-row {
     grid-template-columns: 1fr;
   }
+
   .store-detail-card,
   .product-detail-card {
     flex-direction: column;
   }
+
   .store-detail-img {
     width: 100%;
   }
+
   .profile-panels {
     grid-template-columns: 1fr;
   }
+
   .hold-card {
     grid-template-columns: auto 1fr 1fr;
   }
+
   .hold-visit {
     grid-column: 2;
   }
+
   .hold-actions {
     grid-column: 3;
   }
 }
 
 @media (max-width: 720px) {
+
   .cust-main,
   .cust-topbar {
     padding-left: 1.1rem;
     padding-right: 1.1rem;
   }
+
   .cust-page-title {
     font-size: 1.5rem;
   }
+
   .cust-location {
     display: none;
   }
+
   .card-grid-5 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
   .category-row,
   .category-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
   .searchbar-image-btn {
     display: none;
   }
+
   .searchbar-divider {
     display: none;
   }
+
   .hold-card {
     grid-template-columns: 1fr;
   }
+
   .hold-visit,
   .hold-actions {
     grid-column: auto;
   }
+
   .review-row {
     grid-template-columns: auto 1fr;
     row-gap: 0.5rem;
   }
+
   .review-text {
     grid-column: 1 / -1;
   }
+
   .form-grid-2 {
     grid-template-columns: 1fr;
   }
+
   .profile-basic {
     flex-direction: column;
     align-items: flex-start;
   }
+
   .tabs-search {
     max-width: none;
     width: 100%;
   }
+
   .holds-search {
     min-width: 0;
     width: 100%;
@@ -2543,23 +2584,577 @@ input {
   .wizard-grid-2 {
     grid-template-columns: 1fr;
   }
+
   .review-3col {
     grid-template-columns: 1fr;
   }
+
   .review-store-row,
   .vendor-product-card {
     flex-direction: column;
   }
+
   .review-store-img,
   .vendor-product-main-img {
     width: 100%;
   }
+
   .stepper-label {
     white-space: normal;
     text-align: center;
     font-size: 0.85rem;
   }
+
   .status-card {
     flex-direction: column;
   }
+}
+
+/* ---------- Admin Dashboard ---------- */
+
+.admin-header {
+  margin-bottom: 2rem;
+}
+
+.admin-welcome {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.admin-subtitle {
+  font-size: 1rem;
+  color: #2F302F;
+  margin-top: 0.25rem;
+}
+
+.admin-stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.admin-stat-card {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  gap: 0.75rem;
+  background: var(--white);
+  border: 1px solid #D9D9D9;
+  border-radius: 0.75rem;
+  min-width: 220px;
+  flex: 1;
+}
+
+.admin-stat-icon-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3.75rem;
+  height: 3.75rem;
+  background: #CAAAE8;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+  color: var(--white);
+}
+
+.admin-stat-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-stat-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.admin-stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.admin-divider {
+  border-top: 1px solid #D9D9D9;
+  margin: 2.5rem 0;
+}
+
+.admin-quick-actions {
+  background: var(--white);
+  border: 1px solid #D9D9D9;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.admin-section-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2F302F;
+  margin-bottom: 1.5rem;
+}
+
+.admin-action-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.admin-action-card {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  gap: 0.75rem;
+  border: 1px solid #D9D9D9;
+  border-radius: 0.75rem;
+  flex: 1;
+  min-width: 240px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.admin-action-card:hover {
+  border-color: var(--purple);
+}
+
+.admin-action-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.admin-action-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.admin-action-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.admin-action-chevron {
+  color: #2F302F;
+}
+
+/* ---------- Admin Customers & Tables ---------- */
+
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-filter-label {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #2F302F;
+}
+
+.admin-filter-input {
+  width: 215px;
+  height: 40px;
+  padding: 0 1rem;
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: #2F302F;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.admin-filter-input:focus {
+  border-color: #653B97;
+}
+
+.admin-filter-select-wrap {
+  position: relative;
+  width: 194px;
+}
+
+.admin-filter-select {
+  width: 100%;
+  height: 40px;
+  padding: 0 1rem;
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: #2F302F;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.admin-filter-input-wrap {
+  position: relative;
+}
+
+.admin-filter-input-wrap .admin-filter-input {
+  padding-right: 2.5rem;
+}
+
+.admin-filter-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #2F302F;
+  display: flex;
+  pointer-events: none;
+}
+
+.admin-table-card {
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Poppins', sans-serif;
+}
+
+.admin-table-head {
+  background: #D9D9D9;
+}
+
+.admin-table-head th {
+  padding: 1.25rem 1.5rem;
+  text-align: left;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+  white-space: nowrap;
+}
+
+.admin-table-row td {
+  padding: 1.1rem 1.5rem;
+  font-size: 0.75rem;
+  color: #2F302F;
+  border-bottom: 1px solid #D9D9D9;
+  vertical-align: middle;
+}
+
+.admin-table-row:last-child td {
+  border-bottom: none;
+}
+
+.admin-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 24px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.admin-status-active {
+  background: #C5FFC8;
+  color: #0A800E;
+}
+
+.admin-status-blocked {
+  background: #FFCECE;
+  color: #C00707;
+}
+
+.admin-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  background: #653B97;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.admin-view-btn:hover {
+  background: #5a3285;
+}
+
+.admin-block-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  background: #C00707;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.admin-block-btn:hover {
+  background: #a00606;
+}
+
+/* ---------- Admin Customer Detail ---------- */
+
+.admin-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: #2F302F;
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+}
+
+.admin-back-link:hover {
+  color: #653B97;
+}
+
+.admin-profile-card {
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.admin-profile-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.admin-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 2rem;
+}
+
+.admin-profile-field {
+  font-size: 0.9rem;
+  color: #2F302F;
+  line-height: 1.8;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0;
+}
+
+.admin-tab {
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  border: 1.5px solid #653B97;
+  background: transparent;
+  color: #653B97;
+  font-size: 0.9rem;
+  font-weight: 400;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-tab-active {
+  background: #653B97;
+  color: #FFFFFF;
+}
+
+.admin-star-rating {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.admin-star {
+  font-size: 1.1rem;
+}
+
+.admin-star-filled {
+  color: #F5A623;
+}
+
+.admin-star-empty {
+  color: #D9D9D9;
+}
+
+.admin-status-inactive {
+  background: #FFF0CE;
+  color: #B07800;
+}
+
+.admin-star-half {
+  color: #F5A623;
+  position: relative;
+}
+
+/* ---------- Product Holds Status ---------- */
+
+.admin-status-hold-active {
+  background: #FFF0CE;
+  color: #B07800;
+}
+
+/* ---------- Product Hold Modal ---------- */
+
+.hold-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1.5rem;
+}
+
+.hold-modal {
+  background: #FFFFFF;
+  box-shadow: 0px 0px 50px rgba(0, 0, 0, 0.25);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.hold-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.75rem;
+}
+
+.hold-modal-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2F302F;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.hold-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #2F302F;
+  display: flex;
+  align-items: center;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.hold-modal-close:hover {
+  background: #f0f0f0;
+}
+
+.hold-modal-divider {
+  border: none;
+  border-top: 1px solid #D9D9D9;
+  margin: 0;
+}
+
+.hold-modal-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem 2rem;
+  padding: 1.25rem 1.75rem;
+}
+
+.hold-modal-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+  margin-bottom: 0.5rem;
+}
+
+.hold-modal-field {
+  font-size: 0.75rem;
+  color: #2F302F;
+  line-height: 1.8;
+}
+
+.hold-modal-product-table {
+  border: 1px solid #D9D9D9;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hold-modal-product-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: #D9D9D9;
+  padding: 0.85rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.hold-modal-product-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.75rem;
+  color: #2F302F;
+  border-top: 1px solid #D9D9D9;
+}
+
+.hold-modal-note {
+  font-size: 0.75rem;
+  color: #2F302F;
+  line-height: 1.6;
+  font-family: 'Montserrat', sans-serif;
+}
+/* ---------- Product Detail ---------- */
+
+.product-detail-body {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.product-img-placeholder {
+  flex-shrink: 0;
+  width: 160px;
+  height: 130px;
+  background: #E8E8E8;
+  border-radius: 8px;
+}
+
+.product-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem 2rem;
+  flex: 1;
 }

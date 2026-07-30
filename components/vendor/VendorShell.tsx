@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import Logo from "../Logo";
 
 const NAV_ITEMS = [
   { href: "/vendor/store-status", label: "Store Status", icon: StatusIcon },
@@ -59,9 +60,7 @@ export default function VendorShell({
   return (
     <div className="cust-shell">
       <aside className="cust-sidebar">
-        <span className="cust-logo" aria-label="Storaa">
-          st<span className="cust-logo-accent">o</span>raa
-        </span>
+        <Logo variant="light" height={36} />
         <nav className="cust-nav">
           {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
             <Link
