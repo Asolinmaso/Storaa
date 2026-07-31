@@ -1,16 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const PRODUCTS = [
-  { id: 1, product: "Peanut Butter", store: "Fresh Mart", price: "₹62 / 500g", category: "Grocery", stock: "In Stock", status: "Pending", updatedOn: "20 May, 2026" },
-  { id: 2, product: "Ashirwad Atta", store: "Hari Om", price: "₹62 / Kg", category: "Grocery", stock: "Low Stock", status: "Pending", updatedOn: "20 May, 2026" },
-  { id: 3, product: "Peanut Butter", store: "Balagi Store", price: "₹62 / 500g", category: "Grocery", stock: "Out Of Stock", status: "Pending", updatedOn: "20 May, 2026" },
-  { id: 4, product: "Ashirwad Atta", store: "Fresh Mart", price: "₹62 / Kg", category: "Grocery", stock: "In Stock", status: "Approved", updatedOn: "20 May, 2026" },
-  { id: 5, product: "Basamati Rice", store: "Fresh Mart", price: "₹62 / Kg", category: "Grocery", stock: "In Stock", status: "Approved", updatedOn: "20 May, 2026" },
-  { id: 6, product: "Peanut Butter", store: "Fresh Mart", price: "₹62 / 500g", category: "Grocery", stock: "In Stock", status: "Approved", updatedOn: "20 May, 2026" },
-];
+interface StoreRef {
+  _id: string;
+  name: string;
+  owner: string;
+  email: string;
+  phone: string;
+}
+
+interface ProductRow {
+  _id: string;
+  name: string;
+  category: string;
+  price: number;
+  unit: string;
+  stock: number;
+  status: "under_review" | "approved" | "rejected";
+  storeId: StoreRef | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Counts {
+  total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+}
 
 function ProductIcon() {
   return (
@@ -28,26 +47,70 @@ function CalendarIcon() {
   );
 }
 
-function productStatusClass(status: string) {
-  if (status === "Approved") return "admin-status-badge admin-status-active";
-  if (status === "Pending") return "admin-status-badge admin-status-hold-active";
-  return "admin-status-badge admin-status-blocked";
+function statusClass(status: string) {
+  if (status === "approved") return "admin-status-badge admin-status-active";
+  if (status === "rejected") return "admin-status-badge admin-status-blocked";
+  return "admin-status-badge admin-status-hold-active";
+}
+
+function statusLabel(status: string) {
+  if (status === "approved") return "Approved";
+  if (status === "rejected") return "Rejected";
+  return "Pending";
+}
+
+function stockLabel(stock: number) {
+  if (stock > 10) return "In Stock";
+  if (stock > 0) return "Low Stock";
+  return "Out of Stock";
+}
+
+function fmt(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
 export default function ProductsPage() {
+  const [allProducts, setAllProducts] = useState<ProductRow[]>([]);
+  const [counts, setCounts] = useState<Counts>({ total: 0, approved: 0, pending: 0, rejected: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All");
-  const [storeFilter, setStoreFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [date, setDate] = useState("");
 
-  const filtered = PRODUCTS.filter(p => {
-    const matchSearch = search === "" || p.product.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = status === "All" || p.status === status;
-    const matchStore = storeFilter === "All" || p.store === storeFilter;
-    return matchSearch && matchStatus && matchStore;
-  });
+  useEffect(() => {
+    fetch("/api/admin/products")
+      .then((r) => r.json())
+      .then((data) => {
+        setAllProducts(data.products ?? []);
+        setCounts(data.counts ?? { total: 0, approved: 0, pending: 0, rejected: 0 });
+      })
+      .catch(() => setError("Failed to load products. Please refresh."))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const stores = ["All", ...Array.from(new Set(PRODUCTS.map(p => p.store)))];
+  const filtered = allProducts.filter((p) => {
+    const storeName =
+      p.storeId && typeof p.storeId === "object" ? p.storeId.name : "";
+    const matchSearch =
+      search === "" ||
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      storeName.toLowerCase().includes(search.toLowerCase()) ||
+      p.category.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || p.status === statusFilter;
+    const matchDate =
+      !date || new Date(p.updatedAt).toISOString().startsWith(date);
+    return matchSearch && matchStatus && matchDate;
+  });
 
   return (
     <div>
@@ -57,14 +120,28 @@ export default function ProductsPage() {
           <div className="admin-stat-icon-wrapper"><ProductIcon /></div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Products</span>
-            <span className="admin-stat-value">12,345</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.total.toLocaleString()}</span>
           </div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-icon-wrapper"><ProductIcon /></div>
           <div className="admin-stat-info">
-            <span className="admin-stat-label">Pending Products</span>
-            <span className="admin-stat-value">1,245</span>
+            <span className="admin-stat-label">Approved</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.approved.toLocaleString()}</span>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrapper"><ProductIcon /></div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Pending Review</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.pending.toLocaleString()}</span>
+          </div>
+        </div>
+        <div className="admin-stat-card">
+          <div className="admin-stat-icon-wrapper"><ProductIcon /></div>
+          <div className="admin-stat-info">
+            <span className="admin-stat-label">Rejected</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.rejected.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -75,31 +152,38 @@ export default function ProductsPage() {
       <div className="admin-filters">
         <div className="admin-filter-group">
           <label className="admin-filter-label">Search Product</label>
-          <input type="text" className="admin-filter-input" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input
+            type="text"
+            className="admin-filter-input"
+            placeholder="Search by name, category or store…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <div className="admin-filter-group">
           <label className="admin-filter-label">Filter By Status</label>
           <div className="admin-filter-select-wrap">
-            <select className="admin-filter-select" value={status} onChange={e => setStatus(e.target.value)}>
-              <option>All</option>
-              <option>Pending</option>
-              <option>Approved</option>
-              <option>Rejected</option>
-            </select>
-          </div>
-        </div>
-        <div className="admin-filter-group">
-          <label className="admin-filter-label">Filter By Store</label>
-          <div className="admin-filter-select-wrap">
-            <select className="admin-filter-select" value={storeFilter} onChange={e => setStoreFilter(e.target.value)}>
-              {stores.map(s => <option key={s}>{s}</option>)}
+            <select
+              className="admin-filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="under_review">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
         </div>
         <div className="admin-filter-group">
           <label className="admin-filter-label">Filter By Date</label>
           <div className="admin-filter-input-wrap">
-            <input type="date" className="admin-filter-input" value={date} onChange={e => setDate(e.target.value)} />
+            <input
+              type="date"
+              className="admin-filter-input"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
             <span className="admin-filter-icon"><CalendarIcon /></span>
           </div>
         </div>
@@ -107,36 +191,69 @@ export default function ProductsPage() {
 
       {/* Table */}
       <div className="admin-table-card">
-        <table className="admin-table">
-          <thead>
-            <tr className="admin-table-head">
-              <th>Product</th>
-              <th>Store</th>
-              <th>Price</th>
-              <th>Category</th>
-              <th>Stock</th>
-              <th>Status</th>
-              <th>Updated On</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((p, i) => (
-              <tr key={`${p.id}-${i}`} className="admin-table-row">
-                <td>{p.product}</td>
-                <td>{p.store}</td>
-                <td>{p.price}</td>
-                <td>{p.category}</td>
-                <td>{p.stock}</td>
-                <td><span className={productStatusClass(p.status)}>{p.status}</span></td>
-                <td>{p.updatedOn}</td>
-                <td>
-                  <Link href={`/admin/products/${p.id}`} className="admin-view-btn">View Details</Link>
-                </td>
+        {error && (
+          <p style={{ padding: "1rem", color: "var(--error, #d00)" }}>{error}</p>
+        )}
+        {loading ? (
+          <p style={{ padding: "1rem", color: "#888" }}>Loading products…</p>
+        ) : filtered.length === 0 ? (
+          <p style={{ padding: "1rem", color: "#888" }}>No products found.</p>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr className="admin-table-head">
+                <th>Product</th>
+                <th>Store</th>
+                <th>Price</th>
+                <th>Category</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Updated On</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((p) => {
+                const storeName =
+                  p.storeId && typeof p.storeId === "object"
+                    ? p.storeId.name
+                    : "—";
+                const storeId =
+                  p.storeId && typeof p.storeId === "object"
+                    ? p.storeId._id
+                    : null;
+                return (
+                  <tr key={p._id} className="admin-table-row">
+                    <td>{p.name}</td>
+                    <td>
+                      {storeId ? (
+                        <Link href={`/admin/stores/${storeId}`} style={{ color: "#4B2080", textDecoration: "underline" }}>
+                          {storeName}
+                        </Link>
+                      ) : (
+                        storeName
+                      )}
+                    </td>
+                    <td>₹{p.price}{p.unit ? ` / ${p.unit}` : ""}</td>
+                    <td>{p.category}</td>
+                    <td>{stockLabel(p.stock)}</td>
+                    <td>
+                      <span className={statusClass(p.status)}>
+                        {statusLabel(p.status)}
+                      </span>
+                    </td>
+                    <td>{fmt(p.updatedAt)}</td>
+                    <td>
+                      <Link href={`/admin/products/${p._id}`} className="admin-view-btn">
+                        View Details
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

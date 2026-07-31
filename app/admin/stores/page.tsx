@@ -1,16 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const STORES = [
-  { id: 1, storeName: "Fresh Mart", ownerName: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", location: "Chennai, TN", status: "Active", joinedDate: "20 May, 2026" },
-  { id: 2, storeName: "Hari Om", ownerName: "Priya Sharma", email: "priya@gmail.com", contact: "7845679870", location: "Bangalore, KA", status: "Active", joinedDate: "20 May, 2026" },
-  { id: 3, storeName: "Balagi Store", ownerName: "Amit Verma", email: "amit@gmail.com", contact: "7845679870", location: "Mumbai, MH", status: "Active", joinedDate: "20 May, 2026" },
-  { id: 4, storeName: "Fresh Mart", ownerName: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", location: "Surat, GJ", status: "Blocked", joinedDate: "20 May, 2026" },
-  { id: 5, storeName: "Fresh Mart", ownerName: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", location: "Amritsar, PN", status: "Inactive", joinedDate: "20 May, 2026" },
-  { id: 6, storeName: "Fresh Mart", ownerName: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", location: "Bhopal, MP", status: "Active", joinedDate: "20 May, 2026" },
-];
+interface StoreRow {
+  _id: string;
+  name: string;
+  owner: string;
+  email: string;
+  phone: string;
+  city: string;
+  state: string;
+  status: "under_review" | "approved" | "rejected";
+  createdAt: string;
+}
+
+interface Counts {
+  total: number;
+  approved: number;
+  pending: number;
+  rejected: number;
+}
 
 function StoreIcon() {
   return (
@@ -29,20 +39,60 @@ function CalendarIcon() {
 }
 
 function statusClass(status: string) {
-  if (status === "Active") return "admin-status-badge admin-status-active";
-  if (status === "Blocked") return "admin-status-badge admin-status-blocked";
+  if (status === "approved") return "admin-status-badge admin-status-active";
+  if (status === "rejected") return "admin-status-badge admin-status-blocked";
   return "admin-status-badge admin-status-inactive";
 }
 
+function statusLabel(status: string) {
+  if (status === "approved") return "Active";
+  if (status === "rejected") return "Rejected";
+  return "Pending";
+}
+
+function fmt(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function StoresPage() {
+  const [allStores, setAllStores] = useState<StoreRow[]>([]);
+  const [counts, setCounts] = useState<Counts>({ total: 0, approved: 0, pending: 0, rejected: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("All");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [date, setDate] = useState("");
 
-  const filtered = STORES.filter(s => {
-    const matchSearch = search === "" || s.storeName.toLowerCase().includes(search.toLowerCase()) || s.ownerName.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = status === "All" || s.status === status;
-    return matchSearch && matchStatus;
+  useEffect(() => {
+    fetch("/api/admin/stores")
+      .then((r) => r.json())
+      .then((data) => {
+        setAllStores(data.stores ?? []);
+        setCounts(data.counts ?? { total: 0, approved: 0, pending: 0, rejected: 0 });
+      })
+      .catch(() => setError("Failed to load stores. Please refresh."))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = allStores.filter((s) => {
+    const matchSearch =
+      search === "" ||
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.owner.toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || s.status === statusFilter;
+    const matchDate =
+      !date || new Date(s.createdAt).toISOString().startsWith(date);
+    return matchSearch && matchStatus && matchDate;
   });
 
   return (
@@ -53,28 +103,28 @@ export default function StoresPage() {
           <div className="admin-stat-icon-wrapper"><StoreIcon /></div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Stores</span>
-            <span className="admin-stat-value">12,345</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.total.toLocaleString()}</span>
           </div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-icon-wrapper"><StoreIcon /></div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Active Stores</span>
-            <span className="admin-stat-value">1,245</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.approved.toLocaleString()}</span>
           </div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-icon-wrapper"><StoreIcon /></div>
           <div className="admin-stat-info">
-            <span className="admin-stat-label">Inactive Stores</span>
-            <span className="admin-stat-value">1,245</span>
+            <span className="admin-stat-label">Pending Review</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.pending.toLocaleString()}</span>
           </div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-icon-wrapper"><StoreIcon /></div>
           <div className="admin-stat-info">
-            <span className="admin-stat-label">Pending Stores</span>
-            <span className="admin-stat-value">8,965</span>
+            <span className="admin-stat-label">Rejected</span>
+            <span className="admin-stat-value">{loading ? "…" : counts.rejected.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -85,23 +135,38 @@ export default function StoresPage() {
       <div className="admin-filters">
         <div className="admin-filter-group">
           <label className="admin-filter-label">Search Store</label>
-          <input type="text" className="admin-filter-input" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input
+            type="text"
+            className="admin-filter-input"
+            placeholder="Search by name, owner or email…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
         <div className="admin-filter-group">
           <label className="admin-filter-label">Filter By Status</label>
           <div className="admin-filter-select-wrap">
-            <select className="admin-filter-select" value={status} onChange={e => setStatus(e.target.value)}>
-              <option>All</option>
-              <option>Active</option>
-              <option>Blocked</option>
-              <option>Inactive</option>
+            <select
+              className="admin-filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All</option>
+              <option value="approved">Active</option>
+              <option value="under_review">Pending</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
         </div>
         <div className="admin-filter-group">
           <label className="admin-filter-label">Filter By Date</label>
           <div className="admin-filter-input-wrap">
-            <input type="date" className="admin-filter-input" value={date} onChange={e => setDate(e.target.value)} />
+            <input
+              type="date"
+              className="admin-filter-input"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
             <span className="admin-filter-icon"><CalendarIcon /></span>
           </div>
         </div>
@@ -109,36 +174,51 @@ export default function StoresPage() {
 
       {/* Table */}
       <div className="admin-table-card">
-        <table className="admin-table">
-          <thead>
-            <tr className="admin-table-head">
-              <th>Store Name</th>
-              <th>Owner Name</th>
-              <th>Email</th>
-              <th>Contact</th>
-              <th>Location</th>
-              <th>Status</th>
-              <th>Joined Date</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((s, i) => (
-              <tr key={`${s.id}-${i}`} className="admin-table-row">
-                <td>{s.storeName}</td>
-                <td>{s.ownerName}</td>
-                <td>{s.email}</td>
-                <td>{s.contact}</td>
-                <td>{s.location}</td>
-                <td><span className={statusClass(s.status)}>{s.status}</span></td>
-                <td>{s.joinedDate}</td>
-                <td>
-                  <Link href={`/admin/stores/${s.id}`} className="admin-view-btn">View Details</Link>
-                </td>
+        {error && (
+          <p style={{ padding: "1rem", color: "var(--error, #d00)" }}>{error}</p>
+        )}
+        {loading ? (
+          <p style={{ padding: "1rem", color: "#888" }}>Loading stores…</p>
+        ) : filtered.length === 0 ? (
+          <p style={{ padding: "1rem", color: "#888" }}>No stores found.</p>
+        ) : (
+          <table className="admin-table">
+            <thead>
+              <tr className="admin-table-head">
+                <th>Store Name</th>
+                <th>Owner Name</th>
+                <th>Email</th>
+                <th>Contact</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Joined Date</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map((s) => (
+                <tr key={s._id} className="admin-table-row">
+                  <td>{s.name}</td>
+                  <td>{s.owner || "—"}</td>
+                  <td>{s.email || "—"}</td>
+                  <td>{s.phone || "—"}</td>
+                  <td>{s.city ? `${s.city}, ${s.state}` : "—"}</td>
+                  <td>
+                    <span className={statusClass(s.status)}>
+                      {statusLabel(s.status)}
+                    </span>
+                  </td>
+                  <td>{fmt(s.createdAt)}</td>
+                  <td>
+                    <Link href={`/admin/stores/${s._id}`} className="admin-view-btn">
+                      View Details
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import mongoose, { Schema, type Document, type Model, Types } from "mongoose";
 
+export type ProductStatus = "under_review" | "approved" | "rejected";
+
 export interface IProduct extends Document {
   storeId: Types.ObjectId;
   name: string;
@@ -13,6 +15,8 @@ export interface IProduct extends Document {
   stock: number;
   specifications: string[];
   images: string[];
+  status: ProductStatus;
+  rejectionReason: string;
 }
 
 const ProductSchema = new Schema<IProduct>(
@@ -29,6 +33,12 @@ const ProductSchema = new Schema<IProduct>(
     stock: { type: Number, default: 0 },
     specifications: { type: [String], default: [] },
     images: { type: [String], default: [] },
+    status: {
+      type: String,
+      enum: ["under_review", "approved", "rejected"],
+      default: "under_review",
+    },
+    rejectionReason: { type: String, default: "" },
   },
   { timestamps: true }
 );

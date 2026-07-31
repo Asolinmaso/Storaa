@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Button from "@/components/Button";
+import Link from "next/link";
 import type { ProductDTO } from "@/lib/types";
 
 const emptyForm = {
@@ -15,6 +16,7 @@ const emptyForm = {
 
 export default function VendorProductsPage() {
   const [products, setProducts] = useState<ProductDTO[]>([]);
+  const [storeStatus, setStoreStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -31,7 +33,10 @@ export default function VendorProductsPage() {
   function loadProducts() {
     return fetch("/api/vendor/products")
       .then((r) => r.json())
-      .then((data) => setProducts(data.products ?? []));
+      .then((data) => {
+        setProducts(data.products ?? []);
+        if (data.store?.status) setStoreStatus(data.store.status);
+      });
   }
 
   useEffect(() => {
@@ -135,6 +140,53 @@ export default function VendorProductsPage() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  // Guard: store not yet approved
+  if (!loading && storeStatus && storeStatus !== "approved") {
+    return (
+      <div className="page-stack">
+        <h2 className="section-title">Products</h2>
+        <div className={`status-card ${storeStatus === "rejected" ? "status-card-rejected" : "status-card-review"}`}>
+          <div>
+            {storeStatus === "under_review" && (
+              <>
+                <h3 className="status-title" style={{ marginBottom: "0.5rem" }}>
+                  Store Pending Approval
+                </h3>
+                <p className="status-text">
+                  Your store is currently under review. Product management will be available once your store is approved by the admin.
+                </p>
+                <Link
+                  href="/vendor/store-status"
+                  className="btn btn-primary btn-sm"
+                  style={{ marginTop: "0.75rem", display: "inline-block" }}
+                >
+                  View Store Status
+                </Link>
+              </>
+            )}
+            {storeStatus === "rejected" && (
+              <>
+                <h3 className="status-title status-title-rejected" style={{ marginBottom: "0.5rem" }}>
+                  Store Application Rejected
+                </h3>
+                <p className="status-text">
+                  Your store application was rejected. Please update your details and resubmit for approval before managing products.
+                </p>
+                <Link
+                  href="/vendor/onboarding"
+                  className="btn btn-primary btn-sm"
+                  style={{ marginTop: "0.75rem", display: "inline-block" }}
+                >
+                  Update &amp; Resubmit
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

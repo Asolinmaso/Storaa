@@ -85,7 +85,7 @@ const StoreSchema = new Schema<IStore>(
     status: {
       type: String,
       enum: ["under_review", "approved", "rejected"],
-      default: "approved",
+      default: "under_review",
     },
     rejectionReason: { type: String, default: "" },
   },
