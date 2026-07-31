@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import SearchBar from "@/components/customer/SearchBar";
 import StoreCard from "@/components/customer/StoreCard";
 import { CATEGORIES, HOME_CATEGORY_COUNT } from "@/lib/catalog";
@@ -24,19 +23,33 @@ const BENEFITS = [
 ];
 
 export default function HomePage() {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [stores, setStores] = useState<StoreDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Try featured first; if none returned, fall back to all approved stores
     fetch("/api/stores?featured=true")
       .then((r) => r.json())
-      .then((data) => setStores(data.stores ?? []))
+      .then((data) => {
+        const featured: StoreDTO[] = data.stores ?? [];
+        if (featured.length > 0) {
+          setStores(featured);
+        } else {
+          // Fallback: show all approved stores
+          return fetch("/api/stores")
+            .then((r2) => r2.json())
+            .then((d2) => setStores(d2.stores ?? []));
+        }
+      })
       .catch(() => setError("Failed to load stores. Please refresh."))
       .finally(() => setLoading(false));
   }, []);
+
+  const visible = stores.filter((s) =>
+    s.name.toLowerCase().includes(search.trim().toLowerCase())
+  );
 
   return (
     <div className="page-stack">
@@ -107,7 +120,11 @@ export default function HomePage() {
 
       <section>
         <div className="section-head">
-          <h2 className="section-title">Featured Stores</h2>
+          <h2 className="section-title">
+            {stores.length > 0 && stores.every((s) => s.featured)
+              ? "Featured Stores"
+              : "Stores Near You"}
+          </h2>
           <Link href="/stores" className="view-all">
             View All
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -116,15 +133,17 @@ export default function HomePage() {
         {error && <div className="form-banner form-banner-error">{error}</div>}
         {loading ? (
           <p className="muted">Loading stores…</p>
+        ) : visible.length === 0 ? (
+          <p className="muted">
+            {search.trim()
+              ? `No stores match "${search}".`
+              : "No stores available yet. Check back soon!"}
+          </p>
         ) : (
           <div className="card-grid-5">
-            {stores
-              .filter((s) =>
-                s.name.toLowerCase().includes(search.trim().toLowerCase())
-              )
-              .map((s) => (
-                <StoreCard key={s._id} store={s} />
-              ))}
+            {visible.map((s) => (
+              <StoreCard key={s._id} store={s} />
+            ))}
           </div>
         )}
       </section>

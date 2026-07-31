@@ -6,14 +6,44 @@ import { useParams, useRouter } from "next/navigation";
 import SearchBar from "@/components/customer/SearchBar";
 import { StoreProductCard } from "@/components/customer/ProductCard";
 import HoldModal from "@/components/customer/HoldModal";
-import { SAMPLE_REVIEWS } from "@/lib/reviews";
 import type { ProductDTO, StoreDTO } from "@/lib/types";
+
+interface ReviewItem {
+  _id: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+function StarDisplay({ rating }: { rating: number }) {
+  return (
+    <span aria-label={`${rating} stars`} className="review-stars">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <span key={i} style={{ color: i <= Math.round(rating) ? "#f4b400" : "#ddd" }}>★</span>
+      ))}
+    </span>
+  );
+}
+
+function fmt(dateStr: string) {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
 
 export default function StoreDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [store, setStore] = useState<StoreDTO | null>(null);
   const [products, setProducts] = useState<ProductDTO[]>([]);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [tab, setTab] = useState<"products" | "reviews">("products");
   const [search, setSearch] = useState("");
   const [holdProduct, setHoldProduct] = useState<ProductDTO | null>(null);
@@ -27,6 +57,7 @@ export default function StoreDetailsPage() {
         if (data.store) {
           setStore(data.store);
           setProducts(data.products ?? []);
+          setReviews(data.reviews ?? []);
         } else {
           setError(data.message ?? "Store not found.");
         }
@@ -54,10 +85,14 @@ export default function StoreDetailsPage() {
         <div className="store-detail-card">
           <div
             className="store-detail-img"
-            style={{ background: store.color }}
+            style={
+              store.storePhotoUrl
+                ? { backgroundImage: `url(${store.storePhotoUrl})`, backgroundSize: "cover", backgroundPosition: "center" }
+                : { background: store.color }
+            }
             aria-hidden="true"
           >
-            {store.emoji}
+            {!store.storePhotoUrl && store.emoji}
           </div>
           <div className="store-detail-info">
             <div className="store-detail-head">
@@ -75,11 +110,11 @@ export default function StoreDetailsPage() {
             </div>
             <p className="store-detail-cat">{store.category}</p>
             <ul className="store-detail-list">
-              <li>👤 {store.owner}</li>
-              <li>🕒 {store.hoursLabel}</li>
-              <li>📍 {store.address}</li>
-              <li>📞 {store.phone}</li>
-              <li>✉️ {store.email}</li>
+              {store.owner && <li>👤 {store.owner}</li>}
+              {store.hoursLabel && <li>🕒 {store.hoursLabel}</li>}
+              {store.address && <li>📍 {store.address}</li>}
+              {store.phone && <li>📞 {store.phone}</li>}
+              {store.email && <li>✉️ {store.email}</li>}
             </ul>
           </div>
         </div>
@@ -92,7 +127,7 @@ export default function StoreDetailsPage() {
               📍
             </span>
           </div>
-          <p className="location-addr">{store.shortAddress}</p>
+          <p className="location-addr">{store.shortAddress || store.address}</p>
           <button
             type="button"
             className="btn btn-primary btn-card"
@@ -119,7 +154,7 @@ export default function StoreDetailsPage() {
             className={`pill-tab${tab === "reviews" ? " pill-tab-active" : ""}`}
             onClick={() => setTab("reviews")}
           >
-            Reviews ({store.reviewCount})
+            Reviews ({store.reviewCount || reviews.length})
           </button>
         </div>
         <div className="tabs-search">
@@ -129,7 +164,11 @@ export default function StoreDetailsPage() {
 
       {tab === "products" ? (
         visible.length === 0 ? (
-          <p className="muted">No products match your search.</p>
+          <p className="muted">
+            {search.trim()
+              ? `No products match "${search}".`
+              : "No products available in this store yet."}
+          </p>
         ) : (
           <div className="card-grid-5">
             {visible.map((p) => (
@@ -139,16 +178,23 @@ export default function StoreDetailsPage() {
         )
       ) : (
         <div className="review-list">
-          {SAMPLE_REVIEWS.map((r, i) => (
-            <div key={i} className="review-row">
-              <span className="review-avatar">{r.initials}</span>
-              <span className="review-name">{r.name}</span>
-              <span className="review-stars" aria-label={`${r.stars} stars`}>
-                {"★".repeat(r.stars)}
-              </span>
-              <p className="review-text">{r.text}</p>
-            </div>
-          ))}
+          {reviews.length === 0 ? (
+            <p className="muted">No reviews yet for this store.</p>
+          ) : (
+            reviews.map((r) => (
+              <div key={r._id} className="review-row">
+                <span className="review-avatar">
+                  {r.userName.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="review-name">{r.userName}</span>
+                <StarDisplay rating={r.rating} />
+                <p className="review-text">{r.comment}</p>
+                {r.createdAt && (
+                  <span style={{ fontSize: "0.78rem", color: "#999" }}>{fmt(r.createdAt)}</span>
+                )}
+              </div>
+            ))
+          )}
         </div>
       )}
 

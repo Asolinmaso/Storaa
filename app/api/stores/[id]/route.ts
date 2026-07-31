@@ -24,6 +24,15 @@ export async function GET(
     );
   }
 
-  const products = await Product.find({ storeId: store._id }).sort({ name: 1 });
-  return NextResponse.json({ store, products });
+  // Only return approved products (or pre-existing docs without the field)
+  const products = await Product.find({
+    storeId: store._id,
+    $or: [{ status: "approved" }, { status: { $exists: false } }],
+  }).sort({ name: 1 });
+
+  // Reviews — placeholder until a Reviews collection is added
+  const reviews: unknown[] = [];
+
+  return NextResponse.json({ store, products, reviews });
 }
+

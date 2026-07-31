@@ -3136,6 +3136,94 @@ input {
   line-height: 1.6;
   font-family: 'Montserrat', sans-serif;
 }
+
+/* ---------- Help & Support Tickets ---------- */
+
+.admin-status-ticket-progress {
+  background: #FFEBCF;
+  color: #F99D1B;
+}
+
+.ticket-modal-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 1.75rem 1.25rem;
+}
+
+.ticket-modal-field-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.ticket-modal-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.85rem 1rem;
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: #2F302F;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.ticket-modal-textarea:focus {
+  border-color: #653B97;
+}
+
+.ticket-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.5rem 1.75rem 1.75rem;
+}
+
+.ticket-modal-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  color: #653B97;
+  border: 1px solid #653B97;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ticket-modal-cancel-btn:hover {
+  background: #f5f0fa;
+}
+
+.ticket-modal-update-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  background: #653B97;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.ticket-modal-update-btn:hover {
+  background: #5a3285;
+}
+
 /* ---------- Product Detail ---------- */
 
 .product-detail-body {
@@ -3157,4 +3245,543 @@ input {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0.5rem 2rem;
   flex: 1;
+}
+
+/* ---------- Payouts ---------- */
+
+.admin-status-pending {
+  background: #FFEBCF;
+  color: #F99D1B;
+}
+
+.admin-status-processing {
+  background: #DCE9FF;
+  color: #448AFF;
+}
+
+.payout-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1.5rem;
+}
+
+.payout-modal {
+  background: #FFFFFF;
+  box-shadow: 0px 0px 50px rgba(0, 0, 0, 0.25);
+  border-radius: 24px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.payout-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.75rem;
+}
+
+.payout-modal-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2F302F;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.payout-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #2F302F;
+  display: flex;
+  align-items: center;
+  padding: 0.25rem;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.payout-modal-close:hover {
+  background: #f0f0f0;
+}
+
+.payout-modal-divider {
+  border: none;
+  border-top: 1px solid #D9D9D9;
+  margin: 0;
+}
+
+.payout-modal-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 1.25rem 1.75rem;
+}
+
+.payout-modal-top-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.payout-modal-top-label {
+  font-size: 1rem;
+  color: #000000;
+}
+
+.payout-modal-top-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.payout-modal-view-store-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1.1rem;
+  background: #653B97;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.payout-fail-banner {
+  margin: 0 1.75rem 0;
+  padding: 1rem 1.25rem;
+  background: #FFF3F3;
+  border: 1px solid #FFCECE;
+  border-radius: 12px;
+}
+
+.payout-fail-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #C00707;
+  margin-bottom: 0.4rem;
+}
+
+.payout-fail-text {
+  font-size: 0.85rem;
+  color: #2F302F;
+  line-height: 1.5;
+}
+
+.payout-modal-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 2rem;
+  padding: 1.25rem 1.75rem;
+}
+
+.payout-modal-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+  margin-bottom: 0.5rem;
+}
+
+.payout-modal-field {
+  font-size: 0.75rem;
+  color: #2F302F;
+  line-height: 1.8;
+}
+
+.payout-modal-orders-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+  padding: 0 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.payout-modal-order-table {
+  margin: 0 1.75rem;
+  border: 1px solid #D9D9D9;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.payout-modal-order-head {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 0.8fr 1.2fr 0.8fr;
+  background: #D9D9D9;
+  padding: 0.85rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2F302F;
+}
+
+.payout-modal-order-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 0.8fr 1.2fr 0.8fr;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.75rem;
+  color: #2F302F;
+  border-top: 1px solid #D9D9D9;
+}
+
+.payout-modal-note {
+  padding: 1.25rem 1.75rem 0.5rem;
+  font-size: 0.75rem;
+  color: #2F302F;
+  line-height: 1.6;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.payout-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1.25rem 1.75rem 1.75rem;
+}
+
+.payout-modal-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  background: #653B97;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.payout-modal-action-btn:hover {
+  background: #5a3285;
+}
+
+.payout-modal-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payout-stepper {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1.75rem 1.5rem;
+  gap: 0.25rem;
+}
+
+.payout-stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 0 0 auto;
+  width: 90px;
+}
+
+.payout-stepper-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: #FFFFFF;
+  background: #D9D9D9;
+}
+
+.payout-stepper-dot-done {
+  background: #0A800E;
+}
+
+.payout-stepper-dot-current {
+  background: #653B97;
+}
+
+.payout-stepper-label {
+  font-size: 0.7rem;
+  color: #2F302F;
+  text-align: center;
+}
+
+.payout-stepper-line {
+  flex: 1 1 auto;
+  height: 1px;
+  background: #D9D9D9;
+  margin-bottom: 1.3rem;
+}
+
+/* ================= Global responsive fixes: Admin / Vendor / Consumer ================= */
+
+/* Safety net: nothing should ever force page-level horizontal scroll */
+html, body {
+  overflow-x: hidden;
+}
+
+img, svg {
+  max-width: 100%;
+}
+
+/* Data tables (Admin: customers/products/stores/holds/support/payouts) scroll
+   horizontally inside their own card instead of breaking the page layout. */
+.admin-table-card {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+  .admin-table {
+    min-width: 640px;
+  }
+}
+
+/* Grid-based "table" rows (hold / payout modal line items) get the same
+   horizontal-scroll treatment so columns never get crushed illegibly. */
+.hold-modal-product-table,
+.payout-modal-order-table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 640px) {
+  .hold-modal-product-head,
+  .hold-modal-product-row {
+    min-width: 26rem;
+  }
+
+  .payout-modal-order-head,
+  .payout-modal-order-row {
+    min-width: 34rem;
+  }
+}
+
+/* Tab rows: wrap instead of overflowing on narrow screens */
+.pill-tabs,
+.admin-tabs {
+  flex-wrap: wrap;
+}
+
+/* Address cards: the auto-fill min column (24rem) is wider than a phone
+   viewport, so force a single column below that width. */
+@media (max-width: 26rem) {
+  .address-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* Admin dashboard cards can start shrinking earlier than the sidebar
+     breakpoint so 2-up layouts don't feel cramped next to the icon rail. */
+  .admin-stat-card {
+    min-width: 180px;
+  }
+
+  .admin-action-card {
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-welcome {
+    font-size: 1.25rem;
+  }
+
+  .admin-section-title,
+  .admin-profile-title {
+    font-size: 1.15rem;
+  }
+
+  .admin-profile-header {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .admin-profile-grid,
+  .product-detail-grid,
+  .hold-modal-info-grid,
+  .payout-modal-info-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .product-detail-body,
+  .payout-modal-top {
+    flex-direction: column;
+  }
+
+  .payout-modal-view-store-btn {
+    margin-left: 0;
+  }
+
+  .product-img-placeholder {
+    width: 100%;
+    height: 9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Collapse the persistent icon-rail sidebar (shared by Admin & Customer
+     shells) into a horizontal top bar so content gets the full viewport
+     width and never has to share it with a fixed-width rail. */
+  .cust-shell {
+    flex-direction: column;
+  }
+
+  .cust-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.65rem 1rem;
+    gap: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cust-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+  }
+
+  .cust-nav-item {
+    padding: 0.55rem;
+    flex-shrink: 0;
+  }
+
+  .cust-body {
+    min-width: 0;
+  }
+
+  .vendor-topbar {
+    padding: 0.85rem 1.25rem;
+  }
+
+  .admin-filters,
+  .filter-row {
+    gap: 1rem;
+  }
+
+  .admin-filter-group {
+    flex: 1 1 100%;
+  }
+
+  .admin-filter-input,
+  .admin-filter-select-wrap {
+    width: 100%;
+  }
+
+  .admin-stat-card,
+  .admin-action-card {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .modal,
+  .form-modal,
+  .card {
+    padding: 1.75rem 1.25rem;
+  }
+
+  .hold-modal-header,
+  .payout-modal-header,
+  .ticket-modal-field-group,
+  .ticket-modal-actions,
+  .payout-modal-footer {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .payout-modal-note,
+  .payout-modal-orders-title,
+  .payout-modal-order-table {
+    margin-left: 1.25rem;
+    margin-right: 1.25rem;
+  }
+
+  .payout-fail-banner {
+    margin-left: 1.25rem;
+    margin-right: 1.25rem;
+  }
+
+  .product-detail-img {
+    width: 100%;
+    max-width: 15rem;
+    margin: 0 auto;
+  }
+
+  .product-thumbs,
+  .vendor-product-thumbs {
+    flex-wrap: wrap;
+  }
+
+  .payout-stepper {
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
+    justify-content: center;
+  }
+
+  .payout-stepper-line {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .stepper {
+    flex-wrap: wrap;
+    row-gap: 1rem;
+    justify-content: center;
+  }
+
+  .stepper-line {
+    display: none;
+  }
+
+  .stepper-col {
+    width: 6.5rem;
+  }
+
+  .admin-stats-grid,
+  .admin-action-grid {
+    gap: 1rem;
+  }
+
+  .hold-store-img {
+    width: 4rem;
+    height: 4rem;
+    font-size: 1.9rem;
+  }
+
+  .role-card {
+    padding: 1.1rem;
+    gap: 1rem;
+  }
+
+  .role-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+  }
+
+  .auth-legal {
+    font-size: 0.95rem;
+  }
 }

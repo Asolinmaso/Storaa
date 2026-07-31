@@ -17,7 +17,11 @@ export async function GET(req: Request) {
 
   const approvedStoreIds = await Store.find({ status: "approved" }).distinct("_id");
 
-  const filter: Record<string, unknown> = { storeId: { $in: approvedStoreIds } };
+  const filter: Record<string, unknown> = {
+    storeId: { $in: approvedStoreIds },
+    // Include products with status "approved" OR docs that predate the field (no status field set)
+    $or: [{ status: "approved" }, { status: { $exists: false } }],
+  };
   if (category) filter.category = category;
   if (q) filter.name = { $regex: q, $options: "i" };
 
@@ -27,3 +31,4 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ products });
 }
+

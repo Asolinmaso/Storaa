@@ -8,10 +8,23 @@ export function ProductListingCard({ product }: { product: ProductDTO }) {
     typeof product.storeId === "object" ? (product.storeId as StoreDTO) : null;
   return (
     <Link href={`/products/${product._id}`} className="product-card">
-      <div className="product-card-img">
-        <span className="product-card-emoji" aria-hidden="true">
-          {product.emoji}
-        </span>
+      <div
+        className="product-card-img"
+        style={
+          product.images && product.images.length > 0
+            ? {
+                backgroundImage: `url(${product.images[0]})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {}
+        }
+      >
+        {!(product.images && product.images.length > 0) && (
+          <span className="product-card-emoji" aria-hidden="true">
+            {product.emoji}
+          </span>
+        )}
         <span className="price-chip">₹{product.price}</span>
       </div>
       <div className="product-card-body">
@@ -39,10 +52,23 @@ export function StoreProductCard({
 }) {
   return (
     <div className="product-card">
-      <div className="product-card-img">
-        <span className="product-card-emoji" aria-hidden="true">
-          {product.emoji}
-        </span>
+      <div
+        className="product-card-img"
+        style={
+          product.images && product.images.length > 0
+            ? {
+                backgroundImage: `url(${product.images[0]})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {}
+        }
+      >
+        {!(product.images && product.images.length > 0) && (
+          <span className="product-card-emoji" aria-hidden="true">
+            {product.emoji}
+          </span>
+        )}
         <span className="rating-chip">
           <span className="rating-star">★</span> {product.rating.toFixed(1)}
         </span>
