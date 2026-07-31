@@ -39,7 +39,7 @@ export async function GET(req: Request) {
   }
 
   const [orders, total, successful, failed, revenueAgg] = await Promise.all([
-    Order.find(filter).sort({ orderDate: -1 }).populate("storeId", "name").lean(),
+    Order.find(filter).sort({ orderDate: -1 }).populate("storeId", "name email phone").lean(),
     Order.countDocuments({}),
     Order.countDocuments({ status: "success" }),
     Order.countDocuments({ status: "failed" }),
