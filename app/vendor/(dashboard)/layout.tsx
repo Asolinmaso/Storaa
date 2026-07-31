@@ -21,12 +21,16 @@ export default async function VendorDashboardLayout({
   if (!user.role) redirect("/select-role");
   if (user.role !== "vendor") redirect("/home");
 
-  const store = await Store.findOne({ ownerId: session.userId });
+  const store = await Store.findOne({ ownerId: session.userId }).select("_id status");
   if (!store) redirect("/vendor/onboarding");
 
   return (
-    <VendorShell location={user.location || "Chennai, Tamilnadu"}>
+    <VendorShell
+      location={user.location || "Chennai, Tamilnadu"}
+      storeStatus={store.status}
+    >
       {children}
     </VendorShell>
   );
 }
+

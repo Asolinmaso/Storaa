@@ -6,9 +6,9 @@ import { usePathname, useRouter } from "next/navigation";
 import Logo from "../Logo";
 
 const NAV_ITEMS = [
-  { href: "/vendor/store-status", label: "Store Status", icon: StatusIcon },
-  { href: "/vendor/store-details", label: "Store Details", icon: StoreIcon },
-  { href: "/vendor/products", label: "Products", icon: ProductsIcon },
+  { href: "/vendor/store-status", label: "Store Status", icon: StatusIcon, alwaysEnabled: true },
+  { href: "/vendor/store-details", label: "Store Details", icon: StoreIcon, alwaysEnabled: false },
+  { href: "/vendor/products", label: "Products", icon: ProductsIcon, alwaysEnabled: false },
 ] as const;
 
 function StatusIcon() {
@@ -36,9 +36,11 @@ function pageTitle(pathname: string): string {
 
 export default function VendorShell({
   location,
+  storeStatus,
   children,
 }: {
   location: string;
+  storeStatus?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -62,16 +64,30 @@ export default function VendorShell({
       <aside className="cust-sidebar">
         <Logo variant="light" height={36} />
         <nav className="cust-nav">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`cust-nav-item${pathname.startsWith(href) ? " cust-nav-active" : ""}`}
-            >
-              <Icon />
-              <span>{label}</span>
-            </Link>
-          ))}
+          {NAV_ITEMS.map(({ href, label, icon: Icon, alwaysEnabled }) => {
+            const isApproved = storeStatus === "approved";
+            const disabled = !alwaysEnabled && !isApproved;
+            return disabled ? (
+              <span
+                key={href}
+                className="cust-nav-item"
+                style={{ opacity: 0.45, cursor: "not-allowed" }}
+                title={`Available after store approval`}
+              >
+                <Icon />
+                <span>{label}</span>
+              </span>
+            ) : (
+              <Link
+                key={href}
+                href={href}
+                className={`cust-nav-item${pathname.startsWith(href) ? " cust-nav-active" : ""}`}
+              >
+                <Icon />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
         </nav>
       </aside>
 

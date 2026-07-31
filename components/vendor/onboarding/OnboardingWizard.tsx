@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import VendorTopbar from "@/components/vendor/VendorTopbar";
 import Stepper from "@/components/vendor/Stepper";
@@ -20,8 +20,44 @@ import {
 type StoreErrors = Partial<Record<keyof StoreDetailsForm, string>>;
 type VendorErrors = Partial<Record<keyof VendorBankForm, string>>;
 
+function mapStoreToDraftDetails(s: Record<string, string>): StoreDetailsForm {
+  // Extract address parts: "address, city, state, postalCode" format stored in `address`
+  return {
+    name: s.name ?? "",
+    category: s.category ?? "",
+    storeTime: s.storeTime ?? "",
+    weeklyOff: s.weeklyOff ?? "",
+    address: s.address ?? "",
+    city: s.city ?? "",
+    state: s.state ?? "",
+    postalCode: s.postalCode ?? "",
+    storePhotoUrl: s.storePhotoUrl ?? "",
+    storePhotoName: s.bizRegDocName ?? "",
+    bizRegDocUrl: s.bizRegDocUrl ?? "",
+    bizRegDocName: s.bizRegDocName ?? "",
+    description: s.description ?? "",
+  };
+}
+
+function mapStoreToVendorBank(s: Record<string, string>): VendorBankForm {
+  return {
+    ownerName: s.owner ?? "",
+    ownerContact: s.ownerContact ?? "",
+    ownerEmail: s.email ?? "",
+    ownerGovIdUrl: s.ownerGovIdUrl ?? "",
+    ownerGovIdName: s.ownerGovIdName ?? "",
+    accountHolderName: s.accountHolderName ?? "",
+    bankName: s.bankName ?? "",
+    bankAccountNumber: s.bankAccountNumber ?? "",
+    bankIfsc: s.bankIfsc ?? "",
+    gstNumber: s.gstNumber ?? "",
+    panNumber: s.panNumber ?? "",
+  };
+}
+
 export default function OnboardingWizard() {
   const router = useRouter();
+  const [initialised, setInitialised] = useState(false);
   const [step, setStep] = useState(1);
   const [storeDetails, setStoreDetails] = useState<StoreDetailsForm>(emptyStoreDetails);
   const [vendorDetails, setVendorDetails] = useState<VendorBankForm>(emptyVendorBank);
@@ -30,6 +66,39 @@ export default function OnboardingWizard() {
   const [vendorErrors, setVendorErrors] = useState<VendorErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Pre-fill with rejected store data for resubmission
+  useEffect(() => {
+    fetch("/api/vendor/store")
+      .then((r) => r.json())
+      .then((data) => {
+        const s = data.store;
+        if (s && s.status === "rejected") {
+          setStoreDetails(mapStoreToDraftDetails(s));
+          setVendorDetails(mapStoreToVendorBank(s));
+          // Pre-fill products from the rejected submission
+          if (Array.isArray(data.products) && data.products.length > 0) {
+            setProducts(
+              data.products.map(
+                (p: Record<string, unknown>, i: number) => ({
+                  tempId: `prefill-${i}`,
+                  name: String(p.name ?? ""),
+                  category: String(p.category ?? ""),
+                  brand: String(p.brand ?? ""),
+                  price: String(p.price ?? ""),
+                  unit: String(p.unit ?? ""),
+                  stock: String(p.stock ?? ""),
+                  specifications: Array.isArray(p.specifications) ? (p.specifications as string[]) : [],
+                  images: Array.isArray(p.images) ? (p.images as string[]) : [],
+                })
+              )
+            );
+          }
+        }
+      })
+      .catch(() => {/* silent – proceed with empty form */})
+      .finally(() => setInitialised(true));
+  }, []);
 
   function validateStoreDetails(): boolean {
     const errors: StoreErrors = {};
@@ -81,8 +150,6 @@ export default function OnboardingWizard() {
 
   function handleEditProduct(tempId: string) {
     setStep(3);
-    // ProductsStep manages its own edit state via the products list; jumping
-    // back to step 3 lets the vendor find and edit the product there.
     void tempId;
   }
 
@@ -128,6 +195,17 @@ export default function OnboardingWizard() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (!initialised) {
+    return (
+      <div className="vendor-onboarding-shell">
+        <VendorTopbar location="Chennai, Tamilnadu" />
+        <main className="wizard-main">
+          <p style={{ color: "#888", textAlign: "center", marginTop: "4rem" }}>Loading…</p>
+        </main>
+      </div>
+    );
   }
 
   return (
