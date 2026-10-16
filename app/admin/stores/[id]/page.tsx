@@ -26,8 +26,6 @@ interface Store {
   address: string;
   category: string;
   storeTime: string;
-  weeklyOff: string;
-  description: string;
   storePhotoUrl: string;
   bizRegDocUrl: string;
   bizRegDocName: string;
@@ -335,8 +333,6 @@ export default function StoreDetailPage({
             <p className="admin-profile-field">Vendor Name : {store.owner || "—"}</p>
             <p className="admin-profile-field">Owner Contact : +91 {store.ownerContact || "—"}</p>
             <p className="admin-profile-field">Store Timing : {store.storeTime || "—"}</p>
-            <p className="admin-profile-field">Weekly Off : {store.weeklyOff || "—"}</p>
-            <p className="admin-profile-field">Description : {store.description || "—"}</p>
           </div>
           <div className="admin-profile-col">
             <p className="admin-profile-field">Products Listed : {products.length}</p>

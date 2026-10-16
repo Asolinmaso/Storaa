@@ -24,11 +24,9 @@ export interface StoreDTO {
   state?: string;
   postalCode?: string;
   storeTime?: string;
-  weeklyOff?: string;
   storePhotoUrl?: string;
   bizRegDocUrl?: string;
   bizRegDocName?: string;
-  description?: string;
   ownerContact?: string;
   ownerGovIdUrl?: string;
   ownerGovIdName?: string;

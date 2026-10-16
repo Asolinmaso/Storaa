@@ -26,11 +26,11 @@ export interface IStore extends Document {
   state: string;
   postalCode: string;
   storeTime: string;
-  weeklyOff: string;
+  openTime: string;
+  closeTime: string;
   storePhotoUrl: string;
   bizRegDocUrl: string;
   bizRegDocName: string;
-  description: string;
   ownerContact: string;
   ownerGovIdUrl: string;
   ownerGovIdName: string;
@@ -68,11 +68,11 @@ const StoreSchema = new Schema<IStore>(
     state: { type: String, default: "" },
     postalCode: { type: String, default: "" },
     storeTime: { type: String, default: "" },
-    weeklyOff: { type: String, default: "" },
+    openTime: { type: String, default: "" },
+    closeTime: { type: String, default: "" },
     storePhotoUrl: { type: String, default: "" },
     bizRegDocUrl: { type: String, default: "" },
     bizRegDocName: { type: String, default: "" },
-    description: { type: String, default: "" },
     ownerContact: { type: String, default: "" },
     ownerGovIdUrl: { type: String, default: "" },
     ownerGovIdName: { type: String, default: "" },

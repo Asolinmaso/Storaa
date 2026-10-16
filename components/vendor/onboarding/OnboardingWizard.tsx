@@ -25,17 +25,16 @@ function mapStoreToDraftDetails(s: Record<string, string>): StoreDetailsForm {
   return {
     name: s.name ?? "",
     category: s.category ?? "",
-    storeTime: s.storeTime ?? "",
-    weeklyOff: s.weeklyOff ?? "",
+    openTime: s.openTime ?? "",
+    closeTime: s.closeTime ?? "",
     address: s.address ?? "",
     city: s.city ?? "",
     state: s.state ?? "",
     postalCode: s.postalCode ?? "",
     storePhotoUrl: s.storePhotoUrl ?? "",
-    storePhotoName: s.bizRegDocName ?? "",
+    storePhotoName: s.storePhotoUrl ? "Store photo" : "",
     bizRegDocUrl: s.bizRegDocUrl ?? "",
     bizRegDocName: s.bizRegDocName ?? "",
-    description: s.description ?? "",
   };
 }
 
@@ -105,13 +104,12 @@ export default function OnboardingWizard() {
     const required: Array<keyof StoreDetailsForm> = [
       "name",
       "category",
-      "storeTime",
-      "weeklyOff",
+      "openTime",
+      "closeTime",
       "address",
       "city",
       "state",
       "postalCode",
-      "description",
     ];
     for (const key of required) {
       if (!storeDetails[key].trim()) errors[key] = "This field is required.";
@@ -119,6 +117,13 @@ export default function OnboardingWizard() {
     if (!storeDetails.storePhotoUrl) errors.storePhotoUrl = "Please upload a store photo.";
     if (!storeDetails.bizRegDocUrl)
       errors.bizRegDocUrl = "Please upload a business registration document.";
+    if (
+      storeDetails.openTime &&
+      storeDetails.closeTime &&
+      storeDetails.closeTime <= storeDetails.openTime
+    ) {
+      errors.closeTime = "Closing time must be after opening time.";
+    }
     setStoreErrors(errors);
     return Object.keys(errors).length === 0;
   }

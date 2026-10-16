@@ -1,8 +1,8 @@
 export interface StoreDetailsForm {
   name: string;
   category: string;
-  storeTime: string;
-  weeklyOff: string;
+  openTime: string;
+  closeTime: string;
   address: string;
   city: string;
   state: string;
@@ -11,7 +11,6 @@ export interface StoreDetailsForm {
   storePhotoName: string;
   bizRegDocUrl: string;
   bizRegDocName: string;
-  description: string;
 }
 
 export interface VendorBankForm {
@@ -43,8 +42,8 @@ export interface DraftProduct {
 export const emptyStoreDetails: StoreDetailsForm = {
   name: "",
   category: "",
-  storeTime: "",
-  weeklyOff: "",
+  openTime: "",
+  closeTime: "",
   address: "",
   city: "",
   state: "",
@@ -53,7 +52,6 @@ export const emptyStoreDetails: StoreDetailsForm = {
   storePhotoName: "",
   bizRegDocUrl: "",
   bizRegDocName: "",
-  description: "",
 };
 
 export const emptyVendorBank: VendorBankForm = {
@@ -82,3 +80,17 @@ export const emptyDraftProduct: Omit<DraftProduct, "tempId"> = {
 };
 
 export const MIN_PRODUCTS = 5;
+
+function formatClock(value: string): string {
+  const m = /T(\d{2}):(\d{2})/.exec(value ?? "");
+  if (!m) return "";
+  const h = Number(m[1]);
+  return `${h % 12 || 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** "9:00 AM – 9:00 PM" from two datetime-local values; "" if either is invalid. */
+export function formatStoreTime(openTime: string, closeTime: string): string {
+  const open = formatClock(openTime);
+  const close = formatClock(closeTime);
+  return open && close ? `${open} – ${close}` : "";
+}

@@ -31,8 +31,6 @@ export default async function VendorStoreDetailsPage() {
           <p>Category : {store.category}</p>
           <p>Address : {store.address}</p>
           <p>Store Time : {store.storeTime}</p>
-          <p>Weekly Off : {store.weeklyOff}</p>
-          <p>Description : {store.description}</p>
         </div>
       </div>
 

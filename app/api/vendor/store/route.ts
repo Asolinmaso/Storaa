@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import Store from "@/models/Store";
 import Product from "@/models/Product";
 import { getSession } from "@/lib/auth";
+import { formatStoreTime } from "@/lib/vendorOnboarding";
 
 interface SubmitProduct {
   name: string;
@@ -51,15 +52,14 @@ export async function POST(req: Request) {
     const requiredStoreFields = [
       "name",
       "category",
-      "storeTime",
-      "weeklyOff",
+      "openTime",
+      "closeTime",
       "address",
       "city",
       "state",
       "postalCode",
       "storePhotoUrl",
       "bizRegDocUrl",
-      "description",
     ];
     const requiredVendorFields = [
       "ownerName",
@@ -107,6 +107,14 @@ export async function POST(req: Request) {
       }
     }
 
+    const storeTime = formatStoreTime(storeDetails.openTime, storeDetails.closeTime);
+    if (!storeTime) {
+      return NextResponse.json(
+        { code: "VALIDATION_ERROR", message: "Please provide valid opening and closing times." },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
 
     const existing = await Store.findOne({ ownerId: session.userId });
@@ -128,13 +136,13 @@ export async function POST(req: Request) {
       city: storeDetails.city.trim(),
       state: storeDetails.state.trim(),
       postalCode: storeDetails.postalCode.trim(),
-      storeTime: storeDetails.storeTime.trim(),
-      weeklyOff: storeDetails.weeklyOff.trim(),
-      hoursLabel: storeDetails.storeTime.trim(),
+      openTime: storeDetails.openTime,
+      closeTime: storeDetails.closeTime,
+      storeTime,
+      hoursLabel: storeTime,
       storePhotoUrl: storeDetails.storePhotoUrl,
       bizRegDocUrl: storeDetails.bizRegDocUrl,
       bizRegDocName: storeDetails.bizRegDocName ?? "",
-      description: storeDetails.description.trim(),
       owner: vendorDetails.ownerName.trim(),
       ownerContact: vendorDetails.ownerContact.trim(),
       phone: vendorDetails.ownerContact.trim(),

@@ -1,10 +1,11 @@
 "use client";
 
 import Button from "@/components/Button";
-import type {
-  DraftProduct,
-  StoreDetailsForm,
-  VendorBankForm,
+import {
+  formatStoreTime,
+  type DraftProduct,
+  type StoreDetailsForm,
+  type VendorBankForm,
 } from "@/lib/vendorOnboarding";
 
 interface Props {
@@ -56,9 +57,9 @@ export default function ReviewStep({
             Address : {storeDetails.address}, {storeDetails.city}, {storeDetails.state},{" "}
             {storeDetails.postalCode}
           </p>
-          <p>Store Time : {storeDetails.storeTime}</p>
-          <p>Weekly Off : {storeDetails.weeklyOff}</p>
-          <p>Description : {storeDetails.description}</p>
+          <p>
+            Store Time : {formatStoreTime(storeDetails.openTime, storeDetails.closeTime)}
+          </p>
         </div>
       </div>
 
