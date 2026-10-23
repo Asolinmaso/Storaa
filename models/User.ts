@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Document, type Model, Types } from "mongoose";
 
-export type UserRole = "customer" | "vendor";
+export type UserRole = "customer" | "vendor" | "admin";
 
 export interface IAddress {
   _id?: Types.ObjectId;
@@ -64,7 +64,7 @@ const UserSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["customer", "vendor"],
+      enum: ["customer", "vendor", "admin"],
       default: null,
     },
     name: { type: String, default: "" },

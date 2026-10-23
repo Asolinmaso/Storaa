@@ -457,22 +457,27 @@ export async function applySellerAction(
   }
   if (!updated) return null;
 
-  const store = await Store.findById(updated.storeId);
-  if (store) {
-    const context = callbackContext(
-      {
-        domain: updated.domain,
-        country: "IND",
-        city: updated.city,
-        core_version: updated.coreVersion,
-        bap_id: updated.bapId,
-        bap_uri: updated.bapUri,
-        transaction_id: updated.transactionId,
-      },
-      callbackAction,
-      crypto.randomUUID()
-    );
-    void sendCallback(context, { message: { order: orderBlock(updated, store) } });
+  // The order has already changed; a failed notification must not fail the vendor's action.
+  try {
+    const store = await Store.findById(updated.storeId);
+    if (store) {
+      const context = callbackContext(
+        {
+          domain: updated.domain,
+          country: "IND",
+          city: updated.city,
+          core_version: updated.coreVersion,
+          bap_id: updated.bapId,
+          bap_uri: updated.bapUri,
+          transaction_id: updated.transactionId,
+        },
+        callbackAction,
+        crypto.randomUUID()
+      );
+      void sendCallback(context, { message: { order: orderBlock(updated, store) } });
+    }
+  } catch (err) {
+    console.error(`[ONDC] could not notify buyer app of ${callbackAction}:`, err);
   }
   return updated;
 }

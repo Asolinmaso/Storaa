@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/vendor/store-status", label: "Store Status", icon: StatusIcon, alwaysEnabled: true },
   { href: "/vendor/store-details", label: "Store Details", icon: StoreIcon, alwaysEnabled: false },
   { href: "/vendor/products", label: "Products", icon: ProductsIcon, alwaysEnabled: false },
+  { href: "/vendor/ondc-orders", label: "ONDC Orders", icon: OrdersIcon, alwaysEnabled: false },
 ] as const;
 
 function StatusIcon() {
@@ -27,10 +28,17 @@ function ProductsIcon() {
   );
 }
 
+function OrdersIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
+  );
+}
+
 function pageTitle(pathname: string): string {
   if (pathname.startsWith("/vendor/store-status")) return "Store Status";
   if (pathname.startsWith("/vendor/store-details")) return "Store Details";
   if (pathname.startsWith("/vendor/products")) return "Products";
+  if (pathname.startsWith("/vendor/ondc-orders")) return "ONDC Orders";
   return "Storaa";
 }
 

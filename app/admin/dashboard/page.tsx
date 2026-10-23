@@ -1,6 +1,13 @@
-"use client";
+import { connectDB } from "@/lib/db";
+import Hold from "@/models/Hold";
+import Order from "@/models/Order";
+import Product from "@/models/Product";
+import Store from "@/models/Store";
+import User from "@/models/User";
 
-import React from "react";
+export const dynamic = "force-dynamic";
+
+const fmt = (n: number) => n.toLocaleString("en-IN");
 
 function UsersIcon() {
   return (
@@ -44,7 +51,25 @@ function ChevronRight() {
   );
 }
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  await connectDB();
+  const [users, stores, products, holds, revenue, storeApprovals, productApprovals] =
+    await Promise.all([
+      User.countDocuments({ role: { $ne: "admin" } }),
+      Store.countDocuments({}),
+      Product.countDocuments({}),
+      Hold.countDocuments({}),
+      Order.aggregate<{ total: number }>([
+        { $match: { status: "success" } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Store.countDocuments({ status: "under_review" }),
+      Product.countDocuments({ status: "under_review" }),
+    ]);
+  const totalRevenue = revenue[0]?.total ?? 0;
+  // Support tickets are not stored in the database yet, so no real count exists.
+  const tickets = "—";
+
   return (
     <div>
       <div className="admin-header">
@@ -59,7 +84,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Users</span>
-            <span className="admin-stat-value">12,345</span>
+            <span className="admin-stat-value">{fmt(users)}</span>
           </div>
         </div>
 
@@ -69,7 +94,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Stores</span>
-            <span className="admin-stat-value">1,245</span>
+            <span className="admin-stat-value">{fmt(stores)}</span>
           </div>
         </div>
 
@@ -79,7 +104,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Products</span>
-            <span className="admin-stat-value">18,345</span>
+            <span className="admin-stat-value">{fmt(products)}</span>
           </div>
         </div>
 
@@ -89,7 +114,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Reservations</span>
-            <span className="admin-stat-value">8,965</span>
+            <span className="admin-stat-value">{fmt(holds)}</span>
           </div>
         </div>
 
@@ -99,7 +124,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Revenue</span>
-            <span className="admin-stat-value">₹ 8,965</span>
+            <span className="admin-stat-value">₹ {fmt(totalRevenue)}</span>
           </div>
         </div>
 
@@ -109,7 +134,7 @@ export default function AdminDashboardPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Tickets</span>
-            <span className="admin-stat-value">65</span>
+            <span className="admin-stat-value">{tickets}</span>
           </div>
         </div>
       </div>
@@ -126,7 +151,7 @@ export default function AdminDashboardPage() {
             </div>
             <div className="admin-action-info">
               <span className="admin-action-label">Store Approvals</span>
-              <span className="admin-action-value">12,345</span>
+              <span className="admin-action-value">{fmt(storeApprovals)}</span>
             </div>
             <div className="admin-action-chevron">
               <ChevronRight />
@@ -139,7 +164,7 @@ export default function AdminDashboardPage() {
             </div>
             <div className="admin-action-info">
               <span className="admin-action-label">Product Approvals</span>
-              <span className="admin-action-value">12,345</span>
+              <span className="admin-action-value">{fmt(productApprovals)}</span>
             </div>
             <div className="admin-action-chevron">
               <ChevronRight />
@@ -152,7 +177,7 @@ export default function AdminDashboardPage() {
             </div>
             <div className="admin-action-info">
               <span className="admin-action-label">Help Tickets</span>
-              <span className="admin-action-value">12,345</span>
+              <span className="admin-action-value">{tickets}</span>
             </div>
             <div className="admin-action-chevron">
               <ChevronRight />

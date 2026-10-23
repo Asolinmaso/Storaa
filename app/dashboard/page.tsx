@@ -13,5 +13,6 @@ export default async function DashboardPage() {
   const user = await User.findById(session.userId).select("role isBlocked");
   if (!user || user.isBlocked) redirect("/login");
   if (!user.role) redirect("/select-role");
+  if (user.role === "admin") redirect("/admin/dashboard");
   redirect(user.role === "customer" ? "/home" : "/vendor");
 }

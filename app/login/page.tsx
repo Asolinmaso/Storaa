@@ -44,7 +44,9 @@ export default function LoginPage() {
           ? "/select-role"
           : data.user.role === "customer"
             ? "/home"
-            : "/vendor";
+            : data.user.role === "admin"
+              ? "/admin/dashboard"
+              : "/vendor";
         router.push(dest);
         router.refresh();
         return;
