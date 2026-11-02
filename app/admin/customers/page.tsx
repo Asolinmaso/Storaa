@@ -1,16 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const CUSTOMERS = [
-  { id: 1, name: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", status: "Active", joinedDate: "20 May, 2026" },
-  { id: 2, name: "Priya Sharma", email: "priya@gmail.com", contact: "7845679870", status: "Active", joinedDate: "20 May, 2026" },
-  { id: 3, name: "Amit Verma", email: "amit@gmail.com", contact: "7845679870", status: "Active", joinedDate: "20 May, 2026" },
-  { id: 4, name: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", status: "Blocked", joinedDate: "20 May, 2026" },
-  { id: 5, name: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", status: "Active", joinedDate: "20 May, 2026" },
-  { id: 6, name: "Rohan Mehta", email: "rohan@gmail.com", contact: "7845679870", status: "Active", joinedDate: "20 May, 2026" },
-];
+interface Customer { id: string; name: string; email: string; contact: string; status: string; joinedAt: string }
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 function TotalCustomersIcon() {
   return (
@@ -51,11 +45,20 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
   const [date, setDate] = useState("");
+  const [CUSTOMERS, setCustomers] = useState<Customer[]>([]);
+  const [counts, setCounts] = useState({ total: 0, newLast30Days: 0, blocked: 0 });
+  useEffect(() => {
+    fetch("/api/admin/customers").then((r) => r.json()).then((d) => {
+      setCustomers(d.customers ?? []);
+      if (d.counts) setCounts(d.counts);
+    }).catch(() => {});
+  }, []);
 
   const filtered = CUSTOMERS.filter(c => {
     const matchSearch = search === "" || c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase());
     const matchStatus = status === "All" || c.status === status;
-    return matchSearch && matchStatus;
+    const matchDate = !date || c.joinedAt.slice(0, 10) === date;
+    return matchSearch && matchStatus && matchDate;
   });
 
   return (
@@ -68,7 +71,7 @@ export default function CustomersPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Customers</span>
-            <span className="admin-stat-value">12,345</span>
+            <span className="admin-stat-value">{counts.total}</span>
           </div>
         </div>
         <div className="admin-stat-card">
@@ -76,8 +79,8 @@ export default function CustomersPage() {
             <NewCustomersIcon />
           </div>
           <div className="admin-stat-info">
-            <span className="admin-stat-label">New Customers</span>
-            <span className="admin-stat-value">1,245</span>
+            <span className="admin-stat-label">New (Last 30 Days)</span>
+            <span className="admin-stat-value">{counts.newLast30Days}</span>
           </div>
         </div>
         <div className="admin-stat-card">
@@ -86,7 +89,7 @@ export default function CustomersPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Blocked Customers</span>
-            <span className="admin-stat-value">8,965</span>
+            <span className="admin-stat-value">{counts.blocked}</span>
           </div>
         </div>
       </div>
@@ -147,8 +150,8 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((c, i) => (
-              <tr key={`${c.id}-${i}`} className="admin-table-row">
+            {filtered.map((c) => (
+              <tr key={c.id} className="admin-table-row">
                 <td>{c.name}</td>
                 <td>{c.email}</td>
                 <td>{c.contact}</td>
@@ -157,7 +160,7 @@ export default function CustomersPage() {
                     {c.status}
                   </span>
                 </td>
-                <td>{c.joinedDate}</td>
+                <td>{fmtDate(c.joinedAt)}</td>
                 <td>
                   <Link href={`/admin/customers/${c.id}`} className="admin-view-btn">
                     View Details

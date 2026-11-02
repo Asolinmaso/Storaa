@@ -1,112 +1,112 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-const FREEZE_PRODUCTS = [
-  { id: 1, name: "Amul Milk", store: "Fresh Mart", date: "20 May, 2026", rating: 4 },
-  { id: 2, name: "Boat Airdopes 141", store: "City Electronics", date: "20 May, 2026", rating: 4 },
-  { id: 3, name: "Whole Wheat Flour", store: "Balaji Store", date: "20 May, 2026", rating: 4 },
-];
+interface Customer { id: string; name: string; email: string; contact: string; location: string; status: string; joinedAt: string }
+interface HoldRow { id: string; storeName: string; items: string; total: number; status: string; createdAt: string }
 
-const RATINGS = [
-  { id: 1, name: "Amul Milk", store: "Fresh Mart", date: "20 May, 2026", rating: 4 },
-  { id: 2, name: "Boat Airdopes 141", store: "City Electronics", date: "20 May, 2026", rating: 4 },
-  { id: 3, name: "Whole Wheat Flour", store: "Balaji Store", date: "20 May, 2026", rating: 4 },
-];
-
-function StarRating({ rating, max = 5 }: { rating: number; max?: number }) {
-  return (
-    <span className="admin-star-rating">
-      {Array.from({ length: max }).map((_, i) => (
-        <span key={i} className={i < rating ? "admin-star admin-star-filled" : "admin-star admin-star-empty"}>★</span>
-      ))}
-    </span>
-  );
-}
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 
 export default function CustomerDetailPage({ params }: { params: { id: string } }) {
-  const [activeTab, setActiveTab] = useState<"freeze" | "ratings">("freeze");
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [holds, setHolds] = useState<HoldRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
 
-  const rows = activeTab === "freeze" ? FREEZE_PRODUCTS : RATINGS;
+  useEffect(() => {
+    fetch(`/api/admin/customers/${params.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) { setCustomer(d.customer); setHolds(d.holds ?? []); }
+      })
+      .finally(() => setLoading(false));
+  }, [params.id]);
+
+  async function toggleBlock() {
+    if (!customer) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/customers/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: customer.status === "Blocked" ? "unblock" : "block" }),
+      });
+      const d = await res.json();
+      if (res.ok) setCustomer({ ...customer, status: d.status });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div>
-      {/* Back link */}
       <Link href="/admin/customers" className="admin-back-link">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
         Back To Customers
       </Link>
 
-      {/* Profile card */}
-      <div className="admin-profile-card">
-        <div className="admin-profile-header">
-          <h2 className="admin-profile-title">Profile Details</h2>
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            <button className="admin-view-btn">View Profile</button>
-            <button className="admin-block-btn">Block User</button>
+      {loading ? (
+        <p className="muted">Loading…</p>
+      ) : !customer ? (
+        <p className="muted">Customer not found.</p>
+      ) : (
+        <>
+          <div className="admin-profile-card">
+            <div className="admin-profile-header">
+              <h2 className="admin-profile-title">Profile Details</h2>
+              <div style={{ display: "flex", gap: "0.75rem" }}>
+                <button className="admin-block-btn" onClick={toggleBlock} disabled={busy}>
+                  {customer.status === "Blocked" ? "Unblock User" : "Block User"}
+                </button>
+              </div>
+            </div>
+            <div className="admin-profile-grid">
+              <div className="admin-profile-col">
+                <p className="admin-profile-field">Name : {customer.name}</p>
+                <p className="admin-profile-field">Contact : {customer.contact}</p>
+                <p className="admin-profile-field">E-mail : {customer.email}</p>
+                <p className="admin-profile-field">Location : {customer.location}</p>
+              </div>
+              <div className="admin-profile-col">
+                <p className="admin-profile-field">Account Status : {customer.status}</p>
+                <p className="admin-profile-field">Joined On : {fmtDate(customer.joinedAt)}</p>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="admin-profile-grid">
-          <div className="admin-profile-col">
-            <p className="admin-profile-field">Name : Asolin Maso</p>
-            <p className="admin-profile-field">Contact : +91 7378453784</p>
-            <p className="admin-profile-field">E-mail : asolin@gmail.com</p>
-            <p className="admin-profile-field">Location : Chennai</p>
+
+          <hr className="admin-divider" />
+
+          <div className="admin-tabs">
+            <button className="admin-tab admin-tab-active">Holds ({holds.length})</button>
           </div>
-          <div className="admin-profile-col">
-            <p className="admin-profile-field">Account Status : Active</p>
-            <p className="admin-profile-field">Joined On : Jul 20, 2025</p>
-            <p className="admin-profile-field">Last Login : 19 May, 2026, 6.06 PM</p>
+
+          <div className="admin-table-card" style={{ marginTop: "1rem" }}>
+            <table className="admin-table">
+              <thead>
+                <tr className="admin-table-head">
+                  <th>Products</th>
+                  <th>Store</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {holds.map((h) => (
+                  <tr key={h.id} className="admin-table-row">
+                    <td>{h.items}</td>
+                    <td>{h.storeName}</td>
+                    <td>₹{h.total}</td>
+                    <td>{h.status}</td>
+                    <td>{fmtDate(h.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </div>
-
-      <hr className="admin-divider" />
-
-      {/* Tabs */}
-      <div className="admin-tabs">
-        <button
-          className={`admin-tab${activeTab === "freeze" ? " admin-tab-active" : ""}`}
-          onClick={() => setActiveTab("freeze")}
-        >
-          Freeze Products (03)
-        </button>
-        <button
-          className={`admin-tab${activeTab === "ratings" ? " admin-tab-active" : ""}`}
-          onClick={() => setActiveTab("ratings")}
-        >
-          Ratings (03)
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="admin-table-card" style={{ marginTop: "1rem" }}>
-        <table className="admin-table">
-          <thead>
-            <tr className="admin-table-head">
-              <th>Product Name</th>
-              <th>Store</th>
-              <th>Date</th>
-              <th>Ratings</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.id} className="admin-table-row">
-                <td>{r.name}</td>
-                <td>{r.store}</td>
-                <td>{r.date}</td>
-                <td><StarRating rating={r.rating} /></td>
-                <td>
-                  <Link href="#" className="admin-view-btn">View Store</Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        </>
+      )}
     </div>
   );
 }
