@@ -165,15 +165,38 @@ export default function PayoutsPage() {
       .finally(() => setDetailLoading(false));
   }
 
-  async function runAction(action: "initiate" | "retry") {
+  async function generate() {
+    setActionLoading(true);
+    try {
+      const res = await fetch("/api/admin/payouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate" }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        window.alert(d.created ? `${d.created} payout(s) created.` : "No new orders to pay out.");
+        load();
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function runAction(action: "initiate" | "retry" | "mark_paid" | "mark_failed") {
     if (!selectedId) return;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/admin/payouts/${selectedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          ...(action === "mark_paid" ? { reference: window.prompt("Bank transfer reference (UTR)") ?? "" } : {}),
+          ...(action === "mark_failed" ? { reason: window.prompt("Failure reason") ?? "" } : {}),
+        }),
       });
+      if (action === "mark_paid" && res.status === 400) window.alert("A transfer reference is required.");
       if (res.ok) {
         openDetail(selectedId);
         load();
@@ -185,6 +208,12 @@ export default function PayoutsPage() {
 
   return (
     <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+        <button className="admin-view-btn" disabled={actionLoading} onClick={generate}>
+          Generate Payouts From New Orders
+        </button>
+      </div>
+
       {/* Stat cards */}
       <div className="admin-stats-grid" style={{ marginBottom: "2rem" }}>
         <div className="admin-stat-card">
@@ -424,6 +453,16 @@ export default function PayoutsPage() {
                     <button className="payout-modal-action-btn" disabled={actionLoading} onClick={() => runAction("initiate")}>
                       {actionLoading ? "Initiating…" : "Initiate Payout"}
                     </button>
+                  )}
+                  {detail.payout.status === "processing" && (
+                    <>
+                      <button className="payout-modal-action-btn" disabled={actionLoading} onClick={() => runAction("mark_paid")}>
+                        Mark As Paid
+                      </button>
+                      <button className="payout-modal-action-btn" disabled={actionLoading} onClick={() => runAction("mark_failed")}>
+                        Mark As Failed
+                      </button>
+                    </>
                   )}
                   {detail.payout.status === "failed" && (
                     <button className="payout-modal-action-btn" disabled={actionLoading} onClick={() => runAction("retry")}>

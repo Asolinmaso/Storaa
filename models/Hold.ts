@@ -19,6 +19,9 @@ export interface IHold extends Document {
   visitDate: string;
   visitTime: string;
   status: "active" | "cancelled" | "past";
+  paymentStatus: "unpaid" | "paid";
+  paymentId: string;
+  razorpayOrderId: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +50,9 @@ const HoldSchema = new Schema<IHold>(
       enum: ["active", "cancelled", "past"],
       default: "active",
     },
+    paymentStatus: { type: String, enum: ["unpaid", "paid"], default: "unpaid" },
+    paymentId: { type: String, default: "" },
+    razorpayOrderId: { type: String, default: "", index: true },
   },
   { timestamps: true }
 );

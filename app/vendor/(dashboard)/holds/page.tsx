@@ -9,6 +9,7 @@ interface HoldDTO {
   visitDate: string;
   visitTime: string;
   status: "active" | "cancelled" | "past";
+  paymentStatus?: "unpaid" | "paid";
   createdAt: string;
   customer: { name: string; email: string; phone: string };
 }
@@ -53,7 +54,7 @@ export default function VendorHoldsPage() {
                   Customer : {h.customer.name || h.customer.email || "—"}
                   {h.customer.phone ? ` · ${h.customer.phone}` : ""}
                 </p>
-                <p>Total (pay at store) : ₹{h.total}</p>
+                <p>Total : ₹{h.total} · {h.paymentStatus === "paid" ? "Paid online" : "Pay at store"}</p>
                 <p>Placed : {new Date(h.createdAt).toLocaleString("en-IN")}</p>
               </div>
             </div>

@@ -13,12 +13,16 @@ export interface IPayout extends Document {
   initiatedOn: Date;
   completedOn: Date | null;
   failureReason: string;
+  transferReference: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const PLATFORM_FEE_RATE = 0.1;
-const GST_ON_FEE_RATE = 0.18;
+// Configurable: PLATFORM_FEE_RATE (default 0.10) and GST_ON_FEE_RATE (default 0.18).
+const rate = (v: string | undefined, d: number) => {
+  const n = Number(v);
+  return v !== undefined && v !== "" && n >= 0 && n < 1 ? n : d;
+};
 
 const PayoutSchema = new Schema<IPayout>(
   {
@@ -37,13 +41,14 @@ const PayoutSchema = new Schema<IPayout>(
     initiatedOn: { type: Date, required: true },
     completedOn: { type: Date, default: null },
     failureReason: { type: String, default: "" },
+    transferReference: { type: String, default: "" },
   },
   { timestamps: true }
 );
 
 export function computePayoutAmounts(grossSales: number) {
-  const platformFees = Math.round(grossSales * PLATFORM_FEE_RATE);
-  const gstOnFees = Math.round(platformFees * GST_ON_FEE_RATE);
+  const platformFees = Math.round(grossSales * rate(process.env.PLATFORM_FEE_RATE, 0.1));
+  const gstOnFees = Math.round(platformFees * rate(process.env.GST_ON_FEE_RATE, 0.18));
   const netPayout = grossSales - platformFees - gstOnFees;
   return { platformFees, gstOnFees, netPayout };
 }

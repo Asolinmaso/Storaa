@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import ReportIssueModal from "@/components/ReportIssueModal";
 
 type StoreStatus = "under_review" | "approved" | "rejected";
 
@@ -43,6 +44,7 @@ export default function VendorStoreStatusClient({
   initialStore: StoreData | null;
   ondcAvailable?: boolean;
 }) {
+  const [reporting, setReporting] = useState(false);
   const [ondcBusy, setOndcBusy] = useState(false);
   const [ondcError, setOndcError] = useState("");
 
@@ -255,7 +257,7 @@ export default function VendorStoreStatusClient({
               </div>
               <span className="panel-chevron" aria-hidden="true">›</span>
             </li>
-            <li>
+            <li onClick={() => setReporting(true)} style={{ cursor: "pointer" }}>
               <div>
                 <p className="panel-row-title">Report An Issue</p>
                 <p className="panel-row-text">Let us know if something isn&apos;t right</p>
@@ -272,6 +274,7 @@ export default function VendorStoreStatusClient({
           </ul>
         </div>
       </div>
+      {reporting && <ReportIssueModal onClose={() => setReporting(false)} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Button from "@/components/Button";
+import ReportIssueModal from "@/components/ReportIssueModal";
 import Toggle from "@/components/customer/Toggle";
 import { useEscape } from "@/lib/useEscape";
 import type { ProfileDTO } from "@/lib/types";
@@ -35,6 +36,7 @@ type ModalKind = "edit" | "address" | null;
 export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileDTO | null>(null);
   const [modal, setModal] = useState<ModalKind>(null);
+  const [reporting, setReporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -169,7 +171,11 @@ export default function ProfilePage() {
           <h2 className="section-title">Help &amp; Support</h2>
           <ul className="panel-list">
             {HELP_ROWS.map((row) => (
-              <li key={row.title}>
+              <li
+                key={row.title}
+                onClick={row.title === "Report An Issue" ? () => setReporting(true) : undefined}
+                style={row.title === "Report An Issue" ? { cursor: "pointer" } : undefined}
+              >
                 <div>
                   <p className="panel-row-title">{row.title}</p>
                   <p className="panel-row-text">{row.text}</p>
@@ -183,6 +189,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {reporting && <ReportIssueModal onClose={() => setReporting(false)} />}
       {modal === "edit" && (
         <EditProfileModal
           profile={profile}

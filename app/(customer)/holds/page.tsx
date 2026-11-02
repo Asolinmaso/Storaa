@@ -31,6 +31,8 @@ export default function HoldsPage() {
   const [search, setSearch] = useState("");
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [holdProduct, setHoldProduct] = useState<ProductDTO | null>(null);
+  const [payEnabled, setPayEnabled] = useState(false);
+  const [paying, setPaying] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +40,64 @@ export default function HoldsPage() {
     return fetch("/api/holds")
       .then((r) => r.json())
       .then((data) => setHolds(data.holds ?? []));
+  }
+
+  useEffect(() => {
+    fetch("/api/payments/config")
+      .then((r) => r.json())
+      .then((d) => setPayEnabled(!!d.enabled))
+      .catch(() => {});
+  }, []);
+
+  function loadCheckout(): Promise<boolean> {
+    if (typeof window === "undefined") return Promise.resolve(false);
+    if ((window as unknown as { Razorpay?: unknown }).Razorpay) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.body.appendChild(s);
+    });
+  }
+
+  async function payOnline(h: HoldDTO) {
+    setPaying(h._id);
+    setError(null);
+    try {
+      const res = await fetch("/api/payments/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holdId: h._id }),
+      });
+      const order = await res.json();
+      if (!res.ok) throw new Error(order.message ?? "Could not start the payment.");
+      if (!(await loadCheckout())) throw new Error("Could not load the payment window.");
+      type RzpOpts = Record<string, unknown>;
+      const Razorpay = (window as unknown as { Razorpay: new (o: RzpOpts) => { open(): void } }).Razorpay;
+      new Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.orderId,
+        name: "Storaa",
+        description: `Hold at ${h.storeName}`,
+        handler: async (r: Record<string, string>) => {
+          const v = await fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ holdId: h._id, ...r }),
+          });
+          if (!v.ok) setError("Payment could not be verified. If money was deducted, contact support.");
+          await loadHolds();
+        },
+        modal: { ondismiss: () => setPaying(null) },
+      }).open();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not start the payment.");
+    } finally {
+      setPaying(null);
+    }
   }
 
   useEffect(() => {
@@ -60,6 +120,7 @@ export default function HoldsPage() {
         body: JSON.stringify({ action: "cancel" }),
       });
       if (res.ok) await loadHolds();
+      else setError((await res.json().catch(() => ({}))).message ?? "Could not cancel the hold.");
     } finally {
       setCancelling(null);
     }
@@ -152,6 +213,18 @@ export default function HoldsPage() {
                 </div>
                 <div className="hold-actions">
                   {h.status === "active" ? (
+                    <>
+                    {payEnabled && h.paymentStatus !== "paid" && (
+                      <button
+                        type="button"
+                        className="btn btn-outline-purple btn-sm"
+                        disabled={paying === h._id}
+                        onClick={() => payOnline(h)}
+                      >
+                        {paying === h._id ? "Opening…" : "Pay Online"}
+                      </button>
+                    )}
+                    {h.paymentStatus === "paid" && <span className="badge">Paid</span>}
                     <button
                       type="button"
                       className="btn btn-primary btn-sm"
@@ -160,6 +233,7 @@ export default function HoldsPage() {
                     >
                       {cancelling === h._id ? "Cancelling…" : "Cancel"}
                     </button>
+                    </>
                   ) : (
                     <span className="badge">{h.status}</span>
                   )}

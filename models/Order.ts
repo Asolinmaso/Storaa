@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Document, type Model, Types } from "mongoose";
 
-export type OrderStatus = "success" | "failed";
+export type OrderStatus = "success" | "failed" | "refunded";
 
 export interface IOrder extends Document {
   orderNumber: string;
@@ -13,6 +13,9 @@ export interface IOrder extends Document {
   orderDate: Date;
   status: OrderStatus;
   payoutId: Types.ObjectId | null;
+  holdId: Types.ObjectId | null;
+  razorpayOrderId: string;
+  paymentId: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,7 +30,10 @@ const OrderSchema = new Schema<IOrder>(
     itemCount: { type: Number, default: 1 },
     amount: { type: Number, required: true },
     orderDate: { type: Date, required: true },
-    status: { type: String, enum: ["success", "failed"], default: "success", index: true },
+    status: { type: String, enum: ["success", "failed", "refunded"], default: "success", index: true },
+    holdId: { type: Schema.Types.ObjectId, ref: "Hold", default: null, index: true },
+    razorpayOrderId: { type: String, default: "", index: true },
+    paymentId: { type: String, default: "" },
     payoutId: { type: Schema.Types.ObjectId, ref: "Payout", default: null, index: true },
   },
   { timestamps: true }

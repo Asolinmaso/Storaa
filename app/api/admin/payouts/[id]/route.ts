@@ -55,7 +55,7 @@ export async function PATCH(
     );
   }
 
-  const body = (await req.json()) as { action: "initiate" | "retry" };
+  const body = (await req.json()) as { action: "initiate" | "retry" | "mark_paid" | "mark_failed"; reference?: string; reason?: string };
 
   if (body.action === "initiate") {
     if (payout.status !== "pending") {
@@ -85,8 +85,41 @@ export async function PATCH(
     return NextResponse.json({ payout });
   }
 
+  if (body.action === "mark_paid") {
+    if (payout.status !== "processing") {
+      return NextResponse.json(
+        { code: "VALIDATION_ERROR", message: "Only processing payouts can be marked paid." },
+        { status: 400 }
+      );
+    }
+    if (!body.reference?.trim()) {
+      return NextResponse.json(
+        { code: "VALIDATION_ERROR", message: "A bank transfer reference (UTR) is required." },
+        { status: 400 }
+      );
+    }
+    payout.status = "success";
+    payout.completedOn = new Date();
+    payout.transferReference = body.reference.trim();
+    await payout.save();
+    return NextResponse.json({ payout });
+  }
+
+  if (body.action === "mark_failed") {
+    if (payout.status !== "processing") {
+      return NextResponse.json(
+        { code: "VALIDATION_ERROR", message: "Only processing payouts can be marked failed." },
+        { status: 400 }
+      );
+    }
+    payout.status = "failed";
+    payout.failureReason = body.reason?.trim() || "Bank transfer failed";
+    await payout.save();
+    return NextResponse.json({ payout });
+  }
+
   return NextResponse.json(
-    { code: "VALIDATION_ERROR", message: "Invalid action. Use 'initiate' or 'retry'." },
+    { code: "VALIDATION_ERROR", message: "Invalid action." },
     { status: 400 }
   );
 }

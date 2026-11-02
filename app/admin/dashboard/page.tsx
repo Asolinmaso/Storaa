@@ -4,6 +4,7 @@ import Order from "@/models/Order";
 import Product from "@/models/Product";
 import Store from "@/models/Store";
 import User from "@/models/User";
+import SupportTicket from "@/models/SupportTicket";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ function ChevronRight() {
 
 export default async function AdminDashboardPage() {
   await connectDB();
-  const [users, stores, products, holds, revenue, storeApprovals, productApprovals] =
+  const [users, stores, products, holds, revenue, storeApprovals, productApprovals, tickets] =
     await Promise.all([
       User.countDocuments({ role: { $ne: "admin" } }),
       Store.countDocuments({}),
@@ -65,10 +66,9 @@ export default async function AdminDashboardPage() {
       ]),
       Store.countDocuments({ status: "under_review" }),
       Product.countDocuments({ status: "under_review" }),
+      SupportTicket.countDocuments({}),
     ]);
   const totalRevenue = revenue[0]?.total ?? 0;
-  // Support tickets are not stored in the database yet, so no real count exists.
-  const tickets = "—";
 
   return (
     <div>
@@ -134,7 +134,7 @@ export default async function AdminDashboardPage() {
           </div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Tickets</span>
-            <span className="admin-stat-value">{tickets}</span>
+            <span className="admin-stat-value">{fmt(tickets)}</span>
           </div>
         </div>
       </div>

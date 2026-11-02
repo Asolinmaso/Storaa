@@ -1,31 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type TicketStatus = "Pending" | "In progress" | "Resolved";
 
 type Ticket = {
-  id: number;
+  id: string;
   raisedBy: string;
   type: "Customer" | "Store";
   subject: string;
   category: string;
   status: TicketStatus;
-  date: string;
+  createdAt: string;
+  adminNotes?: string;
   contact: string;
   email: string;
   message: string;
 };
 
-const TICKETS: Ticket[] = [
-  { id: 1, raisedBy: "Rohan Sharma", type: "Customer", subject: "Payment Failed but Amount deducted", category: "Payment", status: "Pending", date: "20 May, 2026", contact: "8967456789", email: "rohan@gmail.com", message: "I am facing an issue while trying to make a payment. The amount got deducted from my account but the order was not placed. Kindly help resolve this as soon as possible." },
-  { id: 2, raisedBy: "Riya Mehta", type: "Store", subject: "Account details are not updating", category: "Account", status: "Pending", date: "20 May, 2026", contact: "9812345678", email: "riya@gmail.com", message: "I updated my store account details but the changes are not reflecting on the dashboard even after multiple attempts. Please help resolve this." },
-  { id: 3, raisedBy: "Rah Shamani", type: "Customer", subject: "Product not getting freeze", category: "Product", status: "In progress", date: "20 May, 2026", contact: "8967456789", email: "rah@gmail.com", message: "I am facing an issue while trying to hold a product in the store. The hold does not get applied even after multiple attempts. Kindly help resolve this as soon as possible." },
-  { id: 4, raisedBy: "Rah Shamani", type: "Store", subject: "Payment Failed but Amount deducted", category: "Payment", status: "In progress", date: "20 May, 2026", contact: "8967456789", email: "rah@gmail.com", message: "A customer's payment failed but the amount was deducted from their account. The order does not reflect on my store dashboard. Please help resolve this." },
-  { id: 5, raisedBy: "Rah Shamani", type: "Customer", subject: "Account details are not updating", category: "Account", status: "Resolved", date: "20 May, 2026", contact: "8967456789", email: "rah@gmail.com", message: "I updated my account details but the changes are not reflecting even after multiple attempts. Please help resolve this." },
-  { id: 6, raisedBy: "Rah Shamani", type: "Store", subject: "Product not getting freeze", category: "Product", status: "Resolved", date: "20 May, 2026", contact: "8967456789", email: "rah@gmail.com", message: "I am facing an issue while trying to hold a product in the store. The hold does not get applied even after multiple attempts. Kindly help resolve this as soon as possible." },
-];
 
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }).replace(/(\w+) (\d{4})$/, "$1, $2");
 const STATUS_OPTIONS: TicketStatus[] = ["Pending", "In progress", "Resolved"];
 
 function TicketIcon() {
@@ -62,7 +56,11 @@ export default function HelpSupportPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("All");
   const [date, setDate] = useState("");
-  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [TICKETS, setTickets] = useState<Ticket[]>([]);
+  const [saving, setSaving] = useState(false);
+  const load = () => fetch("/api/admin/support").then((r) => r.json()).then((d) => setTickets(d.tickets ?? [])).catch(() => {});
+  useEffect(() => { load(); }, []);
   const [draftStatus, setDraftStatus] = useState<TicketStatus>("Pending");
   const [adminNotes, setAdminNotes] = useState("");
   const [responseMessage, setResponseMessage] = useState("");
@@ -70,7 +68,7 @@ export default function HelpSupportPage() {
   const filtered = TICKETS.filter(t => {
     const matchSearch = search === "" || t.raisedBy.toLowerCase().includes(search.toLowerCase());
     const matchStatus = status === "All" || t.status === status;
-    const matchDate = date === "" || t.date === formatFilterDate(date);
+    const matchDate = date === "" || fmtDate(t.createdAt) === formatFilterDate(date);
     return matchSearch && matchStatus && matchDate;
   });
 
@@ -79,8 +77,24 @@ export default function HelpSupportPage() {
   function openTicket(t: Ticket) {
     setSelectedTicketId(t.id);
     setDraftStatus(t.status);
-    setAdminNotes("");
+    setAdminNotes(t.adminNotes ?? "");
     setResponseMessage("");
+  }
+
+  async function saveTicket() {
+    if (!selectedTicket) return;
+    setSaving(true);
+    try {
+      await fetch(`/api/admin/support/${selectedTicket.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: draftStatus, adminNotes, response: responseMessage }),
+      });
+      await load();
+      setSelectedTicketId(null);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function closeTicket() {
@@ -95,21 +109,21 @@ export default function HelpSupportPage() {
           <div className="admin-stat-icon-wrapper"><TicketIcon /></div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Total Tickets</span>
-            <span className="admin-stat-value">12,345</span>
+            <span className="admin-stat-value">{TICKETS.length}</span>
           </div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-icon-wrapper"><TicketIcon /></div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">In Progress Tickets</span>
-            <span className="admin-stat-value">1,245</span>
+            <span className="admin-stat-value">{TICKETS.filter((t) => t.status === "In progress").length}</span>
           </div>
         </div>
         <div className="admin-stat-card">
           <div className="admin-stat-icon-wrapper"><TicketIcon /></div>
           <div className="admin-stat-info">
             <span className="admin-stat-label">Resolved Tickets</span>
-            <span className="admin-stat-value">1,245</span>
+            <span className="admin-stat-value">{TICKETS.filter((t) => t.status === "Resolved").length}</span>
           </div>
         </div>
       </div>
@@ -164,7 +178,7 @@ export default function HelpSupportPage() {
                 <td>{t.subject}</td>
                 <td>{t.category}</td>
                 <td><span className={ticketStatusClass(t.status)}>{t.status}</span></td>
-                <td>{t.date}</td>
+                <td>{fmtDate(t.createdAt)}</td>
                 <td>
                   <button className="admin-view-btn" onClick={() => openTicket(t)}>View Details</button>
                 </td>
@@ -203,7 +217,7 @@ export default function HelpSupportPage() {
               </div>
               <div>
                 <p className="hold-modal-field">Category : {selectedTicket.category}</p>
-                <p className="hold-modal-field">Date : {selectedTicket.date}</p>
+                <p className="hold-modal-field">Date : {fmtDate(selectedTicket.createdAt)}</p>
                 <p className="hold-modal-field">Status : {selectedTicket.status}</p>
               </div>
             </div>
@@ -254,7 +268,7 @@ export default function HelpSupportPage() {
             {/* Actions */}
             <div className="ticket-modal-actions">
               <button className="ticket-modal-cancel-btn" onClick={closeTicket}>Cancel</button>
-              <button className="ticket-modal-update-btn" onClick={closeTicket}>Update Ticket</button>
+              <button className="ticket-modal-update-btn" onClick={saveTicket} disabled={saving}>Update Ticket</button>
             </div>
           </div>
         </div>

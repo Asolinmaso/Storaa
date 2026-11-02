@@ -75,6 +75,7 @@ export interface HoldDTO {
   visitDate: string;
   visitTime: string;
   status: "active" | "cancelled" | "past";
+  paymentStatus?: "unpaid" | "paid";
   createdAt: string;
 }
 

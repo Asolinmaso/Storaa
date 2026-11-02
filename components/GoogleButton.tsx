@@ -1,11 +1,15 @@
 "use client";
 
 export default function GoogleButton({ label }: { label: string }) {
+  // Shown only when Google login is configured (NEXT_PUBLIC_GOOGLE_LOGIN=true plus the GOOGLE_* server vars).
+  if (process.env.NEXT_PUBLIC_GOOGLE_LOGIN !== "true") return null;
   return (
     <button
       type="button"
       className="btn btn-outline"
-      onClick={() => alert("Google sign-in is not configured yet.")}
+      onClick={() => {
+        window.location.href = "/api/auth/google";
+      }}
     >
       <svg width="22" height="22" viewBox="0 0 48 48" aria-hidden="true">
         <path
