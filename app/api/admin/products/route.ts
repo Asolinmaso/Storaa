@@ -1,18 +1,13 @@
 import { NextResponse } from "next/server";
+import { isAdmin } from "@/lib/adminAuth";
 import { connectDB } from "@/lib/db";
 import Product from "@/models/Product";
 
 export const dynamic = "force-dynamic";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
-
-function isAdmin(req: Request): boolean {
-  if (!ADMIN_SECRET) return true;
-  return req.headers.get("x-admin-secret") === ADMIN_SECRET;
-}
 
 export async function GET(req: Request) {
-  if (!isAdmin(req)) {
+  if (!(await isAdmin(req))) {
     return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });
   }
 

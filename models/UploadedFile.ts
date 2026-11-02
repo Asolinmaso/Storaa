@@ -7,6 +7,8 @@ export interface IUploadedFile {
   size: number;
   data: Buffer;
   uploadedBy: Types.ObjectId | null;
+  /** Sensitive documents (IDs, registrations): only the uploader and admins can read them. */
+  private: boolean;
 }
 
 const UploadedFileSchema = new Schema<IUploadedFile>(
@@ -16,6 +18,7 @@ const UploadedFileSchema = new Schema<IUploadedFile>(
     size: { type: Number, required: true },
     data: { type: Buffer, required: true },
     uploadedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    private: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

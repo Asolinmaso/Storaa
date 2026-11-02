@@ -3,7 +3,9 @@ import { connectDB } from "@/lib/db";
 import Hold from "@/models/Hold";
 import Product from "@/models/Product";
 import Store from "@/models/Store";
+import User from "@/models/User";
 import { getSession } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 
 export async function GET() {
   const session = await getSession();
@@ -38,22 +40,41 @@ export async function POST(req: Request) {
     }
 
     await connectDB();
-    const product = await Product.findById(productId).catch(() => null);
+    // Reserve stock atomically so two customers can't hold the last unit.
+    const product = await Product.findOneAndUpdate(
+      {
+        _id: productId,
+        stock: { $gte: qty },
+        $or: [{ status: "approved" }, { status: { $exists: false } }],
+      },
+      { $inc: { stock: -qty } },
+      { new: true }
+    ).catch(() => null);
     if (!product) {
+      const exists = await Product.exists({ _id: productId }).catch(() => null);
+      if (exists) {
+        return NextResponse.json(
+          { code: "OUT_OF_STOCK", message: "Not enough stock available for this product." },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { code: "NOT_FOUND", message: "Product not found." },
         { status: 404 }
       );
     }
     const store = await Store.findById(product.storeId);
-    if (!store) {
+    if (!store || store.status !== "approved") {
+      await Product.updateOne({ _id: product._id }, { $inc: { stock: qty } });
       return NextResponse.json(
         { code: "NOT_FOUND", message: "Store not found." },
         { status: 404 }
       );
     }
 
-    const hold = await Hold.create({
+    let hold;
+    try {
+      hold = await Hold.create({
       userId: session.userId,
       storeId: store._id,
       storeName: store.name,
@@ -72,7 +93,21 @@ export async function POST(req: Request) {
       visitDate,
       visitTime,
       status: "active",
-    });
+      });
+    } catch (err) {
+      await Product.updateOne({ _id: product._id }, { $inc: { stock: qty } });
+      throw err;
+    }
+
+    // Tell the vendor (best effort; they also see it under Holds in their portal).
+    if (store.email) {
+      const buyer = await User.findById(session.userId).select("name email phone");
+      void sendEmail(
+        store.email,
+        `New hold request: ${product.name} x ${qty}`,
+        `${buyer?.name || buyer?.email || "A customer"} reserved ${qty} x ${product.name} (total Rs ${product.price * qty}) for ${visitDate} at ${visitTime}.${buyer?.phone ? ` Phone: ${buyer.phone}.` : ""} View it under Holds in your Storaa vendor portal.`
+      ).catch((e) => console.error("Vendor hold email failed:", e));
+    }
 
     return NextResponse.json({ hold }, { status: 201 });
   } catch (err) {

@@ -170,6 +170,7 @@ export default function StoreDetailsStep({ value, onChange, errors, onNext }: Pr
         />
         <FileUploadField
           label="Business Registration Document Proof"
+          isPrivate
           fileName={value.bizRegDocName}
           error={errors.bizRegDocUrl}
           onUploaded={(url, name) =>

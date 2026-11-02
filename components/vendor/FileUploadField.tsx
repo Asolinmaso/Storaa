@@ -8,6 +8,8 @@ interface FileUploadFieldProps {
   onUploaded: (url: string, name: string) => void;
   accept?: string;
   error?: string | null;
+  /** Sensitive document: only the uploader and admins may view it. */
+  isPrivate?: boolean;
 }
 
 export default function FileUploadField({
@@ -16,6 +18,7 @@ export default function FileUploadField({
   onUploaded,
   accept = "image/jpeg,image/png,image/webp,application/pdf",
   error,
+  isPrivate = false,
 }: FileUploadFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -29,6 +32,7 @@ export default function FileUploadField({
     try {
       const form = new FormData();
       form.append("file", file);
+      if (isPrivate) form.append("private", "true");
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const data = await res.json();
       if (res.ok) {

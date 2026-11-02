@@ -73,6 +73,7 @@ export default function VendorBankStep({ value, onChange, errors, onNext, onBack
 
         <FileUploadField
           label="Owner Government ID Proof"
+          isPrivate
           fileName={value.ownerGovIdName}
           error={errors.ownerGovIdUrl}
           onUploaded={(url, name) =>

@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import User from "@/models/User";
+import { sendEmail } from "@/lib/email";
 import { validateEmail } from "@/lib/validation";
 
 const RESET_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
@@ -30,8 +31,15 @@ export async function POST(req: Request) {
       user.resetCodeExpiry = new Date(Date.now() + RESET_CODE_TTL_MS);
       await user.save();
 
-      // TODO: deliver via an email provider. Logged for development.
-      console.log(`[Storaa] Password reset code for ${user.email}: ${code}`);
+      try {
+        await sendEmail(
+          user.email,
+          "Your Storaa password reset code",
+          `Your Storaa password reset code is ${code}. It expires in 15 minutes. If you did not request this, ignore this email.`
+        );
+      } catch (err) {
+        console.error("Reset email failed:", err);
+      }
     }
 
     // Always respond success so account existence isn't leaked

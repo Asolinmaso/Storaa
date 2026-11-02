@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       size: file.size,
       data: Buffer.from(await file.arrayBuffer()),
       uploadedBy: session.userId,
+      private: form.get("private") === "true",
     });
 
     return NextResponse.json({ url: `/api/files/${saved._id}`, name: file.name });

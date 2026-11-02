@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/vendor/store-status", label: "Store Status", icon: StatusIcon, alwaysEnabled: true },
   { href: "/vendor/store-details", label: "Store Details", icon: StoreIcon, alwaysEnabled: false },
   { href: "/vendor/products", label: "Products", icon: ProductsIcon, alwaysEnabled: false },
+  { href: "/vendor/holds", label: "Holds", icon: OrdersIcon, alwaysEnabled: false },
   { href: "/vendor/ondc-orders", label: "ONDC Orders", icon: OrdersIcon, alwaysEnabled: false },
 ] as const;
 
@@ -38,6 +39,7 @@ function pageTitle(pathname: string): string {
   if (pathname.startsWith("/vendor/store-status")) return "Store Status";
   if (pathname.startsWith("/vendor/store-details")) return "Store Details";
   if (pathname.startsWith("/vendor/products")) return "Products";
+  if (pathname.startsWith("/vendor/holds")) return "Holds";
   if (pathname.startsWith("/vendor/ondc-orders")) return "ONDC Orders";
   return "Storaa";
 }
