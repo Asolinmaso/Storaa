@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireConfig } from "@/lib/ondc/config";
+import { ondcConfig, requireConfig } from "@/lib/ondc/config";
 import { signBase64 } from "@/lib/ondc/crypto";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 
 /** Served at /ondc-site-verification.html (see next.config.mjs rewrites). */
 export async function GET() {
+  if (!ondcConfig().enabled) return new NextResponse("Not found", { status: 404 });
   try {
     const cfg = requireConfig(["requestId", "signingPrivateKey"]);
     const signed = signBase64(cfg.requestId, cfg.signingPrivateKey);

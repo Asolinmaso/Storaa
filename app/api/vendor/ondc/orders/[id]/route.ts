@@ -3,6 +3,7 @@ import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { applySellerAction, type SellerAction } from "@/lib/ondc/handlers";
+import { ondcConfig } from "@/lib/ondc/config";
 import OndcOrder from "@/models/OndcOrder";
 import Store from "@/models/Store";
 
@@ -13,6 +14,9 @@ export async function POST(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  if (!ondcConfig().enabled) {
+    return NextResponse.json({ code: "ONDC_DISABLED" }, { status: 404 });
+  }
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });

@@ -10,6 +10,7 @@ interface StoreData {
   name: string;
   status: StoreStatus;
   rejectionReason: string;
+  ondcEnabled?: boolean;
 }
 
 const POLL_INTERVAL_MS = 10_000;
@@ -37,9 +38,33 @@ function StoreIcon() {
 
 export default function VendorStoreStatusClient({
   initialStore,
+  ondcAvailable = false,
 }: {
   initialStore: StoreData | null;
+  ondcAvailable?: boolean;
 }) {
+  const [ondcBusy, setOndcBusy] = useState(false);
+  const [ondcError, setOndcError] = useState("");
+
+  async function toggleOndc(next: boolean) {
+    setOndcBusy(true);
+    setOndcError("");
+    try {
+      const res = await fetch("/api/vendor/store", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ondcEnabled: next }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Could not update ONDC setting.");
+      setStore((s) => (s ? { ...s, ondcEnabled: data.ondcEnabled } : s));
+    } catch (e) {
+      setOndcError(e instanceof Error ? e.message : "Could not update ONDC setting.");
+    } finally {
+      setOndcBusy(false);
+    }
+  }
+
   const [store, setStore] = useState<StoreData | null>(initialStore);
   const [loading, setLoading] = useState(!initialStore);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
@@ -185,6 +210,26 @@ export default function VendorStoreStatusClient({
               </a>
             </div>
           </div>
+        </div>
+      )}
+
+      {ondcAvailable && store.status === "approved" && (
+        <div className="panel">
+          <h2 className="section-title">ONDC Network</h2>
+          <p className="panel-intro">
+            List your store and in-stock products on the ONDC network so buyer apps can find you.
+            Orders appear under &quot;ONDC Orders&quot;. Your store is off ONDC unless you turn this on.
+          </p>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <input
+              type="checkbox"
+              checked={!!store.ondcEnabled}
+              disabled={ondcBusy}
+              onChange={(e) => toggleOndc(e.target.checked)}
+            />
+            <span>{store.ondcEnabled ? "Listed on ONDC" : "Not listed on ONDC"}</span>
+          </label>
+          {ondcError && <p className="status-text" style={{ color: "#c0392b" }}>{ondcError}</p>}
         </div>
       )}
 

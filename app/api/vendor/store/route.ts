@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import Store from "@/models/Store";
 import Product from "@/models/Product";
 import { getSession } from "@/lib/auth";
+import { ondcConfig } from "@/lib/ondc/config";
 import { formatStoreTime } from "@/lib/vendorOnboarding";
 
 interface SubmitProduct {
@@ -197,4 +198,37 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+/** Vendor opt-in / opt-out of publishing the store on ONDC. */
+export async function PATCH(req: Request) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!ondcConfig().enabled) {
+    return NextResponse.json(
+      { code: "ONDC_DISABLED", message: "ONDC is not enabled on this platform." },
+      { status: 400 }
+    );
+  }
+  const { ondcEnabled } = (await req.json().catch(() => ({}))) as { ondcEnabled?: unknown };
+  if (typeof ondcEnabled !== "boolean") {
+    return NextResponse.json(
+      { code: "VALIDATION_ERROR", message: "ondcEnabled must be a boolean." },
+      { status: 400 }
+    );
+  }
+  await connectDB();
+  const store = await Store.findOne({ ownerId: session.userId });
+  if (!store) return NextResponse.json({ code: "NOT_FOUND" }, { status: 404 });
+  if (store.status !== "approved") {
+    return NextResponse.json(
+      { code: "NOT_APPROVED", message: "Your store must be approved first." },
+      { status: 400 }
+    );
+  }
+  store.ondcEnabled = ondcEnabled;
+  await store.save();
+  return NextResponse.json({ ondcEnabled });
 }

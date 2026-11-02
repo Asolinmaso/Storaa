@@ -45,10 +45,12 @@ function pageTitle(pathname: string): string {
 export default function VendorShell({
   location,
   storeStatus,
+  ondcAvailable = false,
   children,
 }: {
   location: string;
   storeStatus?: string;
+  ondcAvailable?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -72,7 +74,7 @@ export default function VendorShell({
       <aside className="cust-sidebar">
         <Logo variant="light" height={36} />
         <nav className="cust-nav">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, alwaysEnabled }) => {
+          {NAV_ITEMS.filter((n) => ondcAvailable || n.href !== "/vendor/ondc-orders").map(({ href, label, icon: Icon, alwaysEnabled }) => {
             const isApproved = storeStatus === "approved";
             const disabled = !alwaysEnabled && !isApproved;
             return disabled ? (

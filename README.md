@@ -58,7 +58,8 @@ Storaa can list approved stores and products on the [ONDC](https://ondc.org) ret
 1. Generate an Ed25519 signing pair and an X25519 encryption pair (Node `crypto` or libsodium). Signing keys are base64 raw; the encryption public key is base64 DER. Private keys may be raw 32/64 bytes or PKCS8 DER.
 2. Fill the `ONDC_*` variables from `.env.example`. `ONDC_REGISTRY_ENC_PUBLIC_KEY` is ONDC's public key for the environment you target (see ONDC's onboarding docs); `ONDC_REGISTRY_URL` is `https://preprod.registry.ondc.org` or `https://prod.registry.ondc.org`.
 3. Deploy on a public HTTPS domain, then register with ONDC's `/subscribe` using `subscriber_id` = your domain, `subscriber_url` = the path of `ONDC_SUBSCRIBER_URL`, `callback_url` = `/`, your public keys and `ops_no` 2 (seller app). The registry then calls `/on_subscribe` and fetches `/ondc-site-verification.html`.
-4. Give each store coordinates (`latitude` / `longitude` on the Store) or set `ONDC_DEFAULT_GPS`. Stores with neither are not published.
+4. Each approved vendor opts in from **Store Status → ONDC Network** (off by default); only opted-in stores are published. With `ONDC_ENABLED=false` the ONDC endpoints, nav item and toggle are all hidden/disabled.
+5. Give each store coordinates (`latitude` / `longitude` on the Store) or set `ONDC_DEFAULT_GPS`. Stores with neither are not published.
 
 ### Behaviour worth knowing
 

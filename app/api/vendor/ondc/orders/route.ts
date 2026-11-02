@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { ondcConfig } from "@/lib/ondc/config";
 import OndcOrder from "@/models/OndcOrder";
 import Store from "@/models/Store";
 
 /** ONDC orders placed against the signed-in vendor's store. */
 export async function GET() {
+  if (!ondcConfig().enabled) {
+    return NextResponse.json({ code: "ONDC_DISABLED", orders: [] }, { status: 404 });
+  }
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });

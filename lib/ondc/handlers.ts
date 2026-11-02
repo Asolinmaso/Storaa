@@ -102,6 +102,7 @@ async function search(req: BecknRequest): Promise<HandlerResult | null> {
     _id: { $in: Array.from(byStore.keys()) },
     status: "approved",
     isOpen: true,
+    ondcEnabled: true,
   });
 
   const providers = stores
@@ -126,7 +127,7 @@ interface Resolved {
 async function openStore(providerId: unknown): Promise<IStore | null> {
   if (typeof providerId !== "string" || !isValidObjectId(providerId)) return null;
   const store = await Store.findById(providerId);
-  if (!store || store.status !== "approved" || !store.isOpen) return null;
+  if (!store || store.status !== "approved" || !store.isOpen || !store.ondcEnabled) return null;
   return storeLocation(store) ? store : null;
 }
 

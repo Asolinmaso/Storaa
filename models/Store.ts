@@ -22,6 +22,8 @@ export interface IStore extends Document {
   /** Optional coordinates; required to publish the store on ONDC (or set ONDC_DEFAULT_GPS). */
   latitude: number | null;
   longitude: number | null;
+  /** Vendor opt-in: publish this store on ONDC (also needs ONDC_ENABLED=true). */
+  ondcEnabled: boolean;
 
   // Vendor onboarding fields
   ownerId: Types.ObjectId | null;
@@ -67,6 +69,7 @@ const StoreSchema = new Schema<IStore>(
     reviewCount: { type: Number, default: 0 },
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
+    ondcEnabled: { type: Boolean, default: false, index: true },
 
     ownerId: { type: Schema.Types.ObjectId, ref: "User", default: null, index: true },
     city: { type: String, default: "" },
