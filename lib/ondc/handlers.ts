@@ -82,6 +82,7 @@ async function search(req: BecknRequest): Promise<HandlerResult | null> {
   const filter: Record<string, unknown> = {
     category: { $in: categories },
     stock: { $gt: 0 },
+    "ondc.listed": { $ne: false },
     $or: APPROVED,
   };
   const name = intent.item?.descriptor?.name ?? intent.descriptor?.name;
@@ -155,7 +156,9 @@ async function resolveOrder(order: Json): Promise<Resolved | { error: BecknError
   const totalPerProduct = new Map<string, number>();
   for (const r of requested) {
     const product = byId.get(r.id);
-    if (!product || !categoryFor(product.category)) return fail(ERR.itemNotFound);
+    if (!product || !categoryFor(product.category) || product.ondc?.listed === false) {
+      return fail(ERR.itemNotFound);
+    }
     lines.push({ product, quantity: r.quantity });
     totalPerProduct.set(r.id, (totalPerProduct.get(r.id) ?? 0) + r.quantity);
   }
@@ -338,6 +341,11 @@ async function cancel(req: BecknRequest): Promise<HandlerResult> {
   const order = await findOrder(req, req.message?.order_id);
   if (!order) return fail(ERR.orderNotFound);
   if (order.state === "Cancelled") return existingOrderResult(order);
+  const locked = await Product.exists({
+    _id: { $in: order.items.map((i) => i.productId) },
+    "ondc.cancellable": false,
+  });
+  if (locked) return fail(ERR.cannotCancel);
 
   const cancelled = await cancelOrder(
     order,

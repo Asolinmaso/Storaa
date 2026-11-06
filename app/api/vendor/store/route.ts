@@ -200,25 +200,50 @@ export async function POST(req: Request) {
   }
 }
 
-/** Vendor opt-in / opt-out of publishing the store on ONDC. */
+/**
+ * Store settings the vendor controls after approval:
+ * `{ ondcEnabled?, isOpen?, latitude?, longitude? }` (any subset).
+ */
 export async function PATCH(req: Request) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });
   }
-  if (!ondcConfig().enabled) {
-    return NextResponse.json(
-      { code: "ONDC_DISABLED", message: "ONDC is not enabled on this platform." },
-      { status: 400 }
-    );
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const bad = (message: string) =>
+    NextResponse.json({ code: "VALIDATION_ERROR", message }, { status: 400 });
+
+  const update: Record<string, unknown> = {};
+  if (body.ondcEnabled !== undefined) {
+    if (typeof body.ondcEnabled !== "boolean") return bad("ondcEnabled must be a boolean.");
+    if (!ondcConfig().enabled) {
+      return NextResponse.json(
+        { code: "ONDC_DISABLED", message: "ONDC is not enabled on this platform." },
+        { status: 400 }
+      );
+    }
+    update.ondcEnabled = body.ondcEnabled;
   }
-  const { ondcEnabled } = (await req.json().catch(() => ({}))) as { ondcEnabled?: unknown };
-  if (typeof ondcEnabled !== "boolean") {
-    return NextResponse.json(
-      { code: "VALIDATION_ERROR", message: "ondcEnabled must be a boolean." },
-      { status: 400 }
-    );
+  if (body.isOpen !== undefined) {
+    if (typeof body.isOpen !== "boolean") return bad("isOpen must be a boolean.");
+    update.isOpen = body.isOpen;
   }
+  if (body.latitude !== undefined || body.longitude !== undefined) {
+    if (body.latitude === null && body.longitude === null) {
+      update.latitude = null;
+      update.longitude = null;
+    } else {
+      const lat = Number(body.latitude);
+      const lng = Number(body.longitude);
+      if (!Number.isFinite(lat) || lat < -90 || lat > 90) return bad("Latitude must be between -90 and 90.");
+      if (!Number.isFinite(lng) || lng < -180 || lng > 180) return bad("Longitude must be between -180 and 180.");
+      // ONDC expects up to 6 decimal places.
+      update.latitude = Math.round(lat * 1e6) / 1e6;
+      update.longitude = Math.round(lng * 1e6) / 1e6;
+    }
+  }
+  if (Object.keys(update).length === 0) return bad("Nothing to update.");
+
   await connectDB();
   const store = await Store.findOne({ ownerId: session.userId });
   if (!store) return NextResponse.json({ code: "NOT_FOUND" }, { status: 404 });
@@ -228,7 +253,12 @@ export async function PATCH(req: Request) {
       { status: 400 }
     );
   }
-  store.ondcEnabled = ondcEnabled;
+  Object.assign(store, update);
   await store.save();
-  return NextResponse.json({ ondcEnabled });
+  return NextResponse.json({
+    ondcEnabled: store.ondcEnabled,
+    isOpen: store.isOpen,
+    latitude: store.latitude,
+    longitude: store.longitude,
+  });
 }

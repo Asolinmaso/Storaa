@@ -23,28 +23,62 @@ function consumerCare(store: IStore) {
   return [store.name, cfg.supportEmail || store.email, cfg.supportPhone || store.phone].join(",");
 }
 
+/** ISO-8601 duration for a number of minutes ("PT45M", "PT2H"). */
+export function isoMinutes(min: number): string {
+  const m = Math.max(1, Math.round(min || 60));
+  return m % 60 === 0 ? `PT${m / 60}H` : `PT${m}M`;
+}
+
+function itemTags(p: IProduct) {
+  const tags: Json[] = [];
+  const veg = p.ondc?.vegType;
+  if (veg && veg !== "na") {
+    tags.push({
+      code: "veg_nonveg",
+      list: [{ code: veg === "non_veg" ? "non_veg" : veg, value: "yes" }],
+    });
+  }
+  tags.push({ code: "origin", list: [{ code: "country", value: p.ondc?.countryOfOrigin || "IND" }] });
+  return tags;
+}
+
 function catalogItem(p: IProduct, store: IStore, locationId: string) {
   const stock = Math.max(0, Math.floor(p.stock));
   const ts = new Date(p.get("updatedAt") ?? Date.now()).toISOString();
+  const o = p.ondc ?? ({} as IProduct["ondc"]);
+  const mrp = p.mrp && p.mrp > p.price ? p.mrp : p.price;
+  const manufacturer = o.manufacturer || p.brand;
   return {
     id: String(p._id),
     time: { label: "enable", timestamp: ts },
-    descriptor: itemDescriptor(p),
+    descriptor: { ...itemDescriptor(p), ...(p.barcode ? { code: `1:${p.barcode}` } : {}) },
     quantity: {
       unitized: { measure: unitMeasure(p.unit) },
       available: { count: String(stock) },
       maximum: { count: String(Math.min(stock, 20)) },
     },
-    price: { ...price(p.price), maximum_value: money(p.price) },
+    price: { ...price(p.price), maximum_value: money(mrp) },
     category_id: categoryFor(p.category)?.categoryId ?? "",
     fulfillment_id: FULFILLMENT_ID,
     location_id: locationId,
-    "@ondc/org/returnable": false,
-    "@ondc/org/cancellable": true,
+    "@ondc/org/returnable": !!o.returnable,
+    ...(o.returnable ? { "@ondc/org/return_window": `P${Math.max(1, o.returnWindowDays || 7)}D` } : {}),
+    "@ondc/org/cancellable": o.cancellable !== false,
     "@ondc/org/seller_pickup_return": false,
-    "@ondc/org/time_to_ship": "PT1H",
+    "@ondc/org/time_to_ship": isoMinutes(o.timeToShipMinutes ?? 60),
     "@ondc/org/available_on_cod": true,
     "@ondc/org/contact_details_consumer_care": consumerCare(store),
+    ...(manufacturer
+      ? {
+          "@ondc/org/statutory_reqs_packaged_commodities": {
+            manufacturer_or_packer_name: manufacturer,
+            manufacturer_or_packer_address: store.address,
+            common_or_generic_name_of_commodity: p.name,
+            month_year_of_manufacture_packing_import: "N/A",
+          },
+        }
+      : {}),
+    tags: itemTags(p),
     matched: true,
     recommended: false,
   };

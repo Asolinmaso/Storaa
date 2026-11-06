@@ -17,5 +17,6 @@ export default async function VendorEntryPage() {
   if (user.role !== "vendor") redirect("/home");
 
   const store = await Store.findOne({ ownerId: session.userId });
-  redirect(store ? "/vendor/store-status" : "/vendor/onboarding");
+  if (!store) redirect("/vendor/onboarding");
+  redirect(store.status === "approved" ? "/vendor/dashboard" : "/vendor/store-status");
 }

@@ -71,6 +71,13 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
+    if (store.isOpen === false) {
+      await Product.updateOne({ _id: product._id }, { $inc: { stock: qty } });
+      return NextResponse.json(
+        { code: "STORE_PAUSED", message: "This store isn't taking holds right now. Please try again later." },
+        { status: 409 }
+      );
+    }
 
     let hold;
     try {

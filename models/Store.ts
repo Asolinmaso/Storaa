@@ -47,6 +47,32 @@ export interface IStore extends Document {
   panNumber: string;
   status: StoreStatus;
   rejectionReason: string;
+  pos: IStorePos;
+}
+
+export type PosProvider =
+  | "custom"
+  | "gofrugal"
+  | "petpooja"
+  | "marg"
+  | "tally"
+  | "busy"
+  | "vyapar"
+  | "shopify_pos";
+
+/** Connection between the store and its point-of-sale system. */
+export interface IStorePos {
+  provider: PosProvider | "";
+  /** SHA-256 of the API key; the key itself is shown to the vendor once. */
+  apiKeyHash: string;
+  /** First characters of the key, so the vendor can tell keys apart. */
+  apiKeyPrefix: string;
+  connectedAt: Date | null;
+  lastSyncAt: Date | null;
+  /** Create products the POS sends that don't exist yet (they still need admin approval). */
+  autoCreateProducts: boolean;
+  /** Let POS price updates overwrite the Storaa price. */
+  syncPrice: boolean;
 }
 
 const StoreSchema = new Schema<IStore>(
@@ -96,6 +122,21 @@ const StoreSchema = new Schema<IStore>(
       default: "under_review",
     },
     rejectionReason: { type: String, default: "" },
+    pos: {
+      type: new Schema<IStorePos>(
+        {
+          provider: { type: String, default: "" },
+          apiKeyHash: { type: String, default: "", index: true },
+          apiKeyPrefix: { type: String, default: "" },
+          connectedAt: { type: Date, default: null },
+          lastSyncAt: { type: Date, default: null },
+          autoCreateProducts: { type: Boolean, default: false },
+          syncPrice: { type: Boolean, default: true },
+        },
+        { _id: false }
+      ),
+      default: () => ({}),
+    },
   },
   { timestamps: true }
 );

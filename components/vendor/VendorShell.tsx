@@ -4,55 +4,71 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Logo from "../Logo";
+import { Icon } from "./icons";
 
-const NAV_ITEMS = [
-  { href: "/vendor/store-status", label: "Store Status", icon: StatusIcon, alwaysEnabled: true },
-  { href: "/vendor/store-details", label: "Store Details", icon: StoreIcon, alwaysEnabled: false },
-  { href: "/vendor/products", label: "Products", icon: ProductsIcon, alwaysEnabled: false },
-  { href: "/vendor/holds", label: "Holds", icon: OrdersIcon, alwaysEnabled: false },
-  { href: "/vendor/ondc-orders", label: "ONDC Orders", icon: OrdersIcon, alwaysEnabled: false },
-] as const;
+type NavItem = {
+  href: string;
+  label: string;
+  icon: (p: { size?: number }) => JSX.Element;
+  alwaysEnabled?: boolean;
+  ondc?: boolean;
+  badge?: "ondc" | "holds";
+};
 
-function StatusIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 4v3" /><path d="M16 4v3" /></svg>
-  );
-}
-function StoreIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7l1-3h14l1 3" /><path d="M4 7a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0" /><path d="M5 10v10h14V10" /><path d="M9 20v-5h6v5" /></svg>
-  );
-}
-function ProductsIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="7" width="16" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-  );
-}
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  { label: "Overview", items: [{ href: "/vendor/dashboard", label: "Dashboard", icon: Icon.Dashboard }] },
+  {
+    label: "Catalog",
+    items: [
+      { href: "/vendor/products", label: "Products", icon: Icon.Box },
+      { href: "/vendor/pos", label: "POS & Sync", icon: Icon.Pos },
+    ],
+  },
+  {
+    label: "Orders",
+    items: [
+      { href: "/vendor/holds", label: "Holds", icon: Icon.Clock, badge: "holds" },
+      { href: "/vendor/ondc-orders", label: "ONDC Orders", icon: Icon.Bag, ondc: true, badge: "ondc" },
+    ],
+  },
+  { label: "Channels", items: [{ href: "/vendor/ondc", label: "ONDC Network", icon: Icon.Network, ondc: true }] },
+  {
+    label: "Store",
+    items: [
+      { href: "/vendor/store-details", label: "Store Details", icon: Icon.Store },
+      { href: "/vendor/store-status", label: "Store Status", icon: Icon.Shield, alwaysEnabled: true },
+    ],
+  },
+];
 
-function OrdersIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></svg>
-  );
-}
+const TITLES: [string, string][] = [
+  ["/vendor/dashboard", "Dashboard"],
+  ["/vendor/store-status", "Store Status"],
+  ["/vendor/store-details", "Store Details"],
+  ["/vendor/products", "Products"],
+  ["/vendor/pos", "POS & Sync"],
+  ["/vendor/holds", "Holds"],
+  ["/vendor/ondc-orders", "ONDC Orders"],
+  ["/vendor/ondc", "ONDC Network"],
+];
 
 function pageTitle(pathname: string): string {
-  if (pathname.startsWith("/vendor/store-status")) return "Store Status";
-  if (pathname.startsWith("/vendor/store-details")) return "Store Details";
-  if (pathname.startsWith("/vendor/products")) return "Products";
-  if (pathname.startsWith("/vendor/holds")) return "Holds";
-  if (pathname.startsWith("/vendor/ondc-orders")) return "ONDC Orders";
-  return "Storaa";
+  return TITLES.find(([href]) => pathname === href || pathname.startsWith(href + "/"))?.[1] ?? "Storaa";
 }
+
+const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(href + "/");
 
 export default function VendorShell({
   location,
   storeStatus,
   ondcAvailable = false,
+  counts = {},
   children,
 }: {
   location: string;
   storeStatus?: string;
   ondcAvailable?: boolean;
+  counts?: { ondc?: number; holds?: number };
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -75,29 +91,41 @@ export default function VendorShell({
     <div className="cust-shell">
       <aside className="cust-sidebar">
         <Logo variant="light" height={36} />
-        <nav className="cust-nav">
-          {NAV_ITEMS.filter((n) => ondcAvailable || n.href !== "/vendor/ondc-orders").map(({ href, label, icon: Icon, alwaysEnabled }) => {
-            const isApproved = storeStatus === "approved";
-            const disabled = !alwaysEnabled && !isApproved;
-            return disabled ? (
-              <span
-                key={href}
-                className="cust-nav-item"
-                style={{ opacity: 0.45, cursor: "not-allowed" }}
-                title={`Available after store approval`}
-              >
-                <Icon />
-                <span>{label}</span>
-              </span>
-            ) : (
-              <Link
-                key={href}
-                href={href}
-                className={`cust-nav-item${pathname.startsWith(href) ? " cust-nav-active" : ""}`}
-              >
-                <Icon />
-                <span>{label}</span>
-              </Link>
+        <nav className="cust-nav" aria-label="Vendor">
+          {NAV_GROUPS.map((group) => {
+            const items = group.items.filter((n) => ondcAvailable || !n.ondc);
+            if (items.length === 0) return null;
+            return (
+              <div key={group.label} style={{ display: "contents" }}>
+                <span className="vd-nav-label">{group.label}</span>
+                {items.map(({ href, label, icon: NavIcon, alwaysEnabled, badge }) => {
+                  const disabled = !alwaysEnabled && storeStatus !== "approved";
+                  const count = badge ? counts[badge] ?? 0 : 0;
+                  const active = isActive(pathname, href);
+                  return disabled ? (
+                    <span
+                      key={href}
+                      className="cust-nav-item"
+                      style={{ opacity: 0.45, cursor: "not-allowed" }}
+                      title="Available after store approval"
+                    >
+                      <NavIcon size={22} />
+                      <span>{label}</span>
+                    </span>
+                  ) : (
+                    <Link
+                      key={href}
+                      href={href}
+                      className={`cust-nav-item${active ? " cust-nav-active" : ""}`}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <NavIcon size={22} />
+                      <span>{label}</span>
+                      {count > 0 && <em className="vd-nav-pill">{count > 99 ? "99+" : count}</em>}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </nav>
