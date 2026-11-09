@@ -17,7 +17,8 @@ const SAMPLE = [
     sku: "ATTA-5KG", barcode: "8901725181222", name: "Whole Wheat Atta", category: "Groceries", brand: "Aashirvaad",
     price: 289, mrp: 315, unit: "5 kg", stock: 40, lowStockThreshold: 5, gstRate: 5, hsnCode: "1101",
     specifications: "100% whole wheat | No maida", images: "", ondcListed: "yes", returnable: "no",
-    cancellable: "yes", vegType: "veg", countryOfOrigin: "IND", manufacturer: "ITC Ltd",
+    returnWindowDays: "", cancellable: "yes", timeToShipMinutes: 60, vegType: "veg", countryOfOrigin: "IND",
+    manufacturer: "ITC Ltd",
   },
 ];
 

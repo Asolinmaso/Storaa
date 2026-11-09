@@ -2,7 +2,7 @@ import { isValidObjectId } from "mongoose";
 import Product, { type IProduct } from "@/models/Product";
 import PosSyncLog, { type PosSyncKind } from "@/models/PosSyncLog";
 import Store, { type IStore } from "@/models/Store";
-import { parseProductInput, toMongoUpdate } from "@/lib/vendor/productInput";
+import { parseProductInput, reviewUpdate, toMongoUpdate } from "@/lib/vendor/productInput";
 import { skuTaken } from "@/lib/vendor/sku";
 
 export const MAX_ROWS = 1000;
@@ -189,7 +189,11 @@ export async function upsertProducts(
         if (await skuTaken(store._id, data.sku, existing._id)) throw new Error("SKU already used by another product");
         await Product.updateOne(
           { _id: existing._id },
-          { ...toMongoUpdate(data), ...(opts.origin === "pos" ? { posSyncedAt: new Date() } : {}) }
+          {
+            ...toMongoUpdate(data),
+            ...reviewUpdate(existing, data),
+            ...(opts.origin === "pos" ? { posSyncedAt: new Date() } : {}),
+          }
         );
         r.updated++;
       } else {

@@ -1314,7 +1314,8 @@ a.vd-stat:hover {
   background: var(--purple-50);
 }
 
-.vd-provider-logo {
+/* Scoped under .vd-provider so the `.vd-provider span` blurb style doesn't grey out the initials. */
+.vd-provider .vd-provider-logo {
   width: 2.1rem;
   height: 2.1rem;
   border-radius: 9px;

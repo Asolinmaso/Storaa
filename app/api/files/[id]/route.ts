@@ -31,10 +31,17 @@ export async function GET(
     if (!allowed) return new NextResponse("Not found", { status: 404 });
   }
 
-  return new NextResponse(new Uint8Array(file.data), {
+  // `.lean()` returns BSON Binary (not a Buffer) for binary fields; its bytes are on `.buffer`.
+  // `new Uint8Array(binary)` would be empty and break every image with a Content-Length mismatch.
+  const raw = file.data as unknown;
+  const bytes = Buffer.isBuffer(raw)
+    ? raw
+    : Buffer.from((raw as { buffer?: Uint8Array }).buffer ?? (raw as Uint8Array));
+
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": file.contentType,
-      "Content-Length": String(file.size),
+      "Content-Length": String(bytes.length),
       "Cache-Control": sensitive
         ? "private, no-store"
         : "public, max-age=31536000, immutable",

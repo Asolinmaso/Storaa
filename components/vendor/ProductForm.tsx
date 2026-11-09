@@ -76,6 +76,58 @@ function initialForm(p?: VendorProduct | null) {
   };
 }
 
+type Form = ReturnType<typeof initialForm>;
+
+function toPayload(f: Form) {
+  const price = Number(f.price);
+  const mrp = Number(f.mrp);
+  return {
+    name: f.name,
+    category: f.category,
+    brand: f.brand,
+    unit: f.unit,
+    price,
+    mrp: mrp || 0,
+    gstRate: Number(f.gstRate),
+    hsnCode: f.hsnCode,
+    stock: Number(f.stock) || 0,
+    lowStockThreshold: Number(f.lowStockThreshold) || 0,
+    sku: f.sku,
+    barcode: f.barcode,
+    specifications: f.specs.split("\n").map((s) => s.trim()).filter(Boolean),
+    images: f.images,
+    ondc: {
+      listed: f.listed,
+      returnable: f.returnable,
+      returnWindowDays: f.returnable ? Number(f.returnWindowDays) || 7 : 0,
+      cancellable: f.cancellable,
+      timeToShipMinutes: Number(f.timeToShipMinutes),
+      vegType: f.vegType,
+      countryOfOrigin: f.countryOfOrigin,
+      manufacturer: f.manufacturer,
+    },
+  };
+}
+
+/**
+ * Only the fields the vendor changed. Sending untouched fields would overwrite updates made
+ * meanwhile (e.g. POS sales lowering stock while the drawer was open).
+ */
+function changedFields(next: ReturnType<typeof toPayload>, prev: ReturnType<typeof toPayload>) {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const out: Record<string, unknown> = {};
+  for (const k of Object.keys(next) as (keyof typeof next)[]) {
+    if (k === "ondc") continue;
+    if (!same(next[k], prev[k])) out[k] = next[k];
+  }
+  const ondc: Record<string, unknown> = {};
+  for (const k of Object.keys(next.ondc) as (keyof typeof next.ondc)[]) {
+    if (!same(next.ondc[k], prev.ondc[k])) ondc[k] = next.ondc[k];
+  }
+  if (Object.keys(ondc).length) out.ondc = ondc;
+  return out;
+}
+
 export default function ProductForm({
   product,
   ondcAvailable,
@@ -132,37 +184,29 @@ export default function ProductForm({
       return;
     }
     setError("");
+    const payload = toPayload(f);
+    if (product) {
+      const changes = changedFields(payload, toPayload(initialForm(product)));
+      if (Object.keys(changes).length === 0) {
+        onClose();
+        return;
+      }
+      setSaving(true);
+      try {
+        const r = await api<{ product: VendorProduct }>(`/api/vendor/products/${product._id}`, { method: "PATCH", json: changes });
+        const sentForReview = r.product?.status === "under_review" && product.status !== "under_review";
+        onSaved(sentForReview ? "Product updated — sent to admin for review before it goes live again" : "Product updated");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not save.");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
     setSaving(true);
-    const payload = {
-      name: f.name,
-      category: f.category,
-      brand: f.brand,
-      unit: f.unit,
-      price,
-      mrp: mrp || 0,
-      gstRate: Number(f.gstRate),
-      hsnCode: f.hsnCode,
-      stock: Number(f.stock) || 0,
-      lowStockThreshold: Number(f.lowStockThreshold) || 0,
-      sku: f.sku,
-      barcode: f.barcode,
-      specifications: f.specs.split("\n").map((s) => s.trim()).filter(Boolean),
-      images: f.images,
-      ondc: {
-        listed: f.listed,
-        returnable: f.returnable,
-        returnWindowDays: f.returnable ? Number(f.returnWindowDays) || 7 : 0,
-        cancellable: f.cancellable,
-        timeToShipMinutes: Number(f.timeToShipMinutes),
-        vegType: f.vegType,
-        countryOfOrigin: f.countryOfOrigin,
-        manufacturer: f.manufacturer,
-      },
-    };
     try {
-      if (product) await api(`/api/vendor/products/${product._id}`, { method: "PATCH", json: payload });
-      else await api("/api/vendor/products", { method: "POST", json: payload });
-      onSaved(product ? "Product updated" : "Product added — it will go live after admin approval");
+      await api("/api/vendor/products", { method: "POST", json: payload });
+      onSaved("Product added — it will go live after admin approval");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save.");
     } finally {
@@ -185,8 +229,13 @@ export default function ProductForm({
     >
       {product?.status === "rejected" && (
         <div className="vd-error">
-          <strong>Rejected by admin:</strong> {product.rejectionReason || "No reason given."} Update the details and save.
+          <strong>Rejected by admin:</strong> {product.rejectionReason || "No reason given."} Update the details and save to resubmit it for review.
         </div>
+      )}
+      {product?.status === "approved" && (
+        <p className="vd-sub" style={{ marginBottom: "0.75rem" }}>
+          Price, stock and ONDC settings update instantly. Changing the name, category, brand, highlights or images sends the product back for admin review.
+        </p>
       )}
 
       <div className="vd-section-title">Basics</div>

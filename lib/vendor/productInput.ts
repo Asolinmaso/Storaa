@@ -165,7 +165,8 @@ export function parseProductInput(
     if (!(VEG_TYPES as readonly string[]).includes(veg)) return { ok: false, error: "Food type must be veg, non_veg, egg or na." };
     ondc.vegType = veg as (typeof VEG_TYPES)[number];
   }
-  const coo = str(o.countryOfOrigin, 3);
+  // Validate before trimming to 3 so "INDONESIA" is rejected rather than stored as "IND".
+  const coo = str(o.countryOfOrigin, 10);
   if (coo !== undefined) {
     if (coo && !/^[A-Za-z]{3}$/.test(coo)) return { ok: false, error: "Country of origin must be a 3-letter code, e.g. IND." };
     ondc.countryOfOrigin = coo.toUpperCase();
@@ -187,3 +188,22 @@ export function toMongoUpdate(data: ProductInput): Record<string, unknown> {
 
 /** Fields whose change means an admin must re-approve the product. */
 export const REVIEWED_FIELDS = ["name", "category", "images", "specifications", "brand"] as const;
+
+/**
+ * Status change implied by an update: an approved product whose customer-facing details
+ * (REVIEWED_FIELDS) change goes back to review, and any content edit to a rejected product resubmits it.
+ * Returns {} when the status should stay as it is.
+ */
+export function reviewUpdate(current: { status?: string }, data: ProductInput): { status?: "under_review"; rejectionReason?: string } {
+  const status = current.status ?? "approved";
+  if (status === "under_review") return {};
+  const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const fields = current as Record<string, unknown>;
+  const reviewedChange = REVIEWED_FIELDS.some((k) => data[k] !== undefined && !same(data[k], fields[k]));
+  // Stock-only updates (POS, inline stock edits) never resubmit a rejected product.
+  const contentChange = Object.keys(data).some((k) => k !== "stock" && k !== "lowStockThreshold");
+  if (status === "rejected" ? contentChange : reviewedChange) {
+    return { status: "under_review", rejectionReason: "" };
+  }
+  return {};
+}

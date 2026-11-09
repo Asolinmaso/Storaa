@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import Product from "@/models/Product";
 import { vendorStore } from "@/lib/vendor/session";
-import { parseProductInput, toMongoUpdate } from "@/lib/vendor/productInput";
+import { parseProductInput, reviewUpdate, toMongoUpdate } from "@/lib/vendor/productInput";
 import { skuTaken } from "@/lib/vendor/sku";
 
 const notFound = () => NextResponse.json({ code: "NOT_FOUND", message: "Product not found." }, { status: 404 });
@@ -29,7 +29,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
     const product = await Product.findOneAndUpdate(
       { _id: params.id, storeId: store._id },
-      toMongoUpdate(parsed.data),
+      { ...toMongoUpdate(parsed.data), ...reviewUpdate(current, parsed.data) },
       { new: true }
     );
     if (!product) return notFound();

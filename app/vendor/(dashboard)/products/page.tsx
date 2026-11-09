@@ -54,7 +54,7 @@ function StockCell({ product, onSaved, onError }: { product: VendorProduct; onSa
         value={value}
         disabled={busy}
         onChange={(e) => setValue(e.target.value.replace(/\D/g, ""))}
-        onBlur={() => commit(Number(value || 0))}
+        onBlur={() => (value === "" ? setValue(String(product.stock)) : commit(Number(value)))}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
       />
       <button type="button" aria-label="Increase stock" disabled={busy} onClick={() => commit(product.stock + 1)}>+</button>
@@ -357,7 +357,11 @@ export default function VendorProductsPage() {
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                           <StockCell
                             product={p}
-                            onSaved={(n) => setProducts((list) => list.map((x) => (x._id === p._id ? { ...x, stock: n } : x)))}
+                            onSaved={(n) => {
+                              setProducts((list) => list.map((x) => (x._id === p._id ? { ...x, stock: n } : x)));
+                              // Refresh so ONDC readiness (e.g. "Out of stock") reflects the new level.
+                              load().catch(() => {});
+                            }}
                             onError={(m) => toast(m, true)}
                           />
                           {p.stock <= 0 ? <Badge tone="err">Out</Badge> : isLow(p) ? <Badge tone="warn">Low</Badge> : null}

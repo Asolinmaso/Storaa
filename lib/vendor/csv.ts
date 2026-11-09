@@ -2,7 +2,8 @@
 export const CSV_COLUMNS = [
   "sku", "barcode", "name", "category", "brand", "price", "mrp", "unit", "stock",
   "lowStockThreshold", "gstRate", "hsnCode", "specifications", "images",
-  "ondcListed", "returnable", "cancellable", "vegType", "countryOfOrigin", "manufacturer",
+  "ondcListed", "returnable", "returnWindowDays", "cancellable", "timeToShipMinutes", "vegType",
+  "countryOfOrigin", "manufacturer",
 ] as const;
 
 const ONDC_COLUMNS: Record<string, string> = {
