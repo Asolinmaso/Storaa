@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { runInBackground } from "@/lib/background";
 import { ondcConfig, OndcConfigError, requireConfig } from "@/lib/ondc/config";
 import { decryptChallenge } from "@/lib/ondc/crypto";
 import { contextProblem, processAndCallback } from "@/lib/ondc/handlers";
@@ -13,6 +14,11 @@ import { verifyInbound } from "@/lib/ondc/verify";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+// Callbacks to the buyer app run after the ACK; give them room to finish.
+export const maxDuration = 60;
+
+// Valid ONDC retail actions this seller app does not implement (yet): answer clearly rather than 404.
+const UNSUPPORTED_ACTIONS = ["issue", "issue_status", "receiver_recon"];
 
 const ack = () => ({ message: { ack: { status: "ACK" } } });
 
@@ -50,6 +56,12 @@ export async function POST(
   if (params.action === "on_subscribe") return onSubscribe(req);
 
   const action = params.action as InboundAction;
+  if (UNSUPPORTED_ACTIONS.includes(params.action)) {
+    return nack(
+      { type: "POLICY-ERROR", code: "60001", message: `${params.action} is not supported by this seller app yet` },
+      501
+    );
+  }
   if (!INBOUND_ACTIONS.includes(action)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -93,6 +105,6 @@ export async function POST(
   }
 
   // ACK now; the real answer is a signed POST to the buyer app's on_{action}.
-  void processAndCallback(action, body);
+  runInBackground(processAndCallback(action, body));
   return NextResponse.json(ack());
 }

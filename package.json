@@ -10,9 +10,11 @@
     "seed": "node scripts/seed.mjs",
     "create-admin": "node scripts/create-admin.mjs",
     "ondc:keys": "node scripts/ondc-keys.mjs",
-    "ondc:demo": "node scripts/ondc-demo.mjs"
+    "ondc:demo": "node scripts/ondc-demo.mjs",
+    "test": "node --no-warnings --test --experimental-strip-types tests/*.test.ts"
   },
   "dependencies": {
+    "@vercel/functions": "^3.11.1",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",
     "mongoose": "^9.7.4",
@@ -25,6 +27,8 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
     "typescript": "^5"
   }
 }

@@ -47,7 +47,8 @@ function catalogItem(p: IProduct, store: IStore, locationId: string) {
   const ts = new Date(p.get("updatedAt") ?? Date.now()).toISOString();
   const o = p.ondc ?? ({} as IProduct["ondc"]);
   const mrp = p.mrp && p.mrp > p.price ? p.mrp : p.price;
-  const manufacturer = o.manufacturer || p.brand;
+  // Legal packaged-goods declaration: only what the vendor stated, never guessed from the brand.
+  const manufacturer = o.manufacturer;
   return {
     id: String(p._id),
     time: { label: "enable", timestamp: ts },

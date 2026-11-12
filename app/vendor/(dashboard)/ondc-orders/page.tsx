@@ -54,6 +54,13 @@ const STATE_TONE: Record<OndcOrderDTO["state"], Tone> = {
   Cancelled: "err",
 };
 
+/** Reasons a seller can pick when cancelling (must match SELLER_CANCEL_REASONS on the server). */
+const SELLER_REASONS: { id: string; label: string }[] = [
+  { id: "010", label: "An item is out of stock / not available" },
+  { id: "011", label: "The buyer did not turn up" },
+  { id: "005", label: "I can't fulfil this order" },
+];
+
 const CANCEL_REASONS: Record<string, string> = {
   "001": "Price changed",
   "002": "Store not serviceable",
@@ -96,6 +103,35 @@ function Steps({ o }: { o: OndcOrderDTO }) {
   );
 }
 
+/** True when the buyer's pickup window has closed but the order is still open. */
+function pickupOverdue(o: OndcOrderDTO): boolean {
+  if (o.state !== "Accepted" && o.state !== "In-progress") return false;
+  const end = o.fulfillment?.end?.time?.range?.end;
+  return !!end && Date.parse(end) < Date.now();
+}
+
+/** Short two-tone chime so a busy shop owner notices a new order without watching the screen. */
+function chime() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    [660, 880].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.18);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + i * 0.18 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.18 + 0.16);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + i * 0.18);
+      osc.stop(ctx.currentTime + i * 0.18 + 0.17);
+    });
+    setTimeout(() => ctx.close().catch(() => undefined), 800);
+  } catch {
+    // Browsers may block audio before the first click; the toast and tab title still show it.
+  }
+}
+
 function pickupWindow(o: OndcOrderDTO): string | null {
   const r = o.fulfillment?.end?.time?.range;
   if (!r?.start) return null;
@@ -111,20 +147,28 @@ export default function VendorOndcOrdersPage() {
   const [q, setQ] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState<OndcOrderDTO | null>(null);
+  const [confirmPickup, setConfirmPickup] = useState<OndcOrderDTO | null>(null);
+  const [cancelReason, setCancelReason] = useState(SELLER_REASONS[0].id);
+  const [truncated, setTruncated] = useState(false);
+  const [sound, setSound] = useState(true);
   const [lastLoaded, setLastLoaded] = useState<Date | null>(null);
   const [, tick] = useState(0);
   const knownIds = useRef<Set<string> | null>(null);
+  const soundRef = useRef(true);
+  soundRef.current = sound;
   const { toast, node } = useToast();
   const router = useRouter();
 
   const load = useCallback(async (quiet = false) => {
     try {
-      const data = await api<{ orders: OndcOrderDTO[] }>("/api/vendor/ondc/orders");
+      const data = await api<{ orders: OndcOrderDTO[]; truncated?: boolean }>("/api/vendor/ondc/orders");
       const list = data.orders ?? [];
+      setTruncated(!!data.truncated);
       if (knownIds.current) {
         const fresh = list.filter((o) => !knownIds.current!.has(o._id));
         if (fresh.length) {
           toast(`${fresh.length} new ONDC order${fresh.length > 1 ? "s" : ""} received`);
+          if (soundRef.current) chime();
           router.refresh(); // update the sidebar badge
         }
       }
@@ -162,10 +206,20 @@ export default function VendorOndcOrdersPage() {
     });
   }, [orders, tab, q]);
 
-  async function act(o: OndcOrderDTO, action: SellerAction) {
+  // Tab title shows how many orders are waiting, e.g. "(3) ONDC orders".
+  useEffect(() => {
+    const waiting = counts.new;
+    const original = document.title;
+    document.title = waiting ? `(${waiting}) ONDC orders` : original;
+    return () => {
+      document.title = original;
+    };
+  }, [counts.new]);
+
+  async function act(o: OndcOrderDTO, action: SellerAction, reasonId?: string) {
     setBusyId(o._id);
     try {
-      await api(`/api/vendor/ondc/orders/${o._id}`, { method: "POST", json: { action } });
+      await api(`/api/vendor/ondc/orders/${o._id}`, { method: "POST", json: { action, ...(reasonId ? { reasonId } : {}) } });
       toast(
         action === "pack" ? `Order ${o.orderId} marked packed — buyer notified`
           : action === "picked_up" ? `Order ${o.orderId} completed`
@@ -179,6 +233,7 @@ export default function VendorOndcOrdersPage() {
     } finally {
       setBusyId(null);
       setConfirmCancel(null);
+      setConfirmPickup(null);
     }
   }
 
@@ -194,6 +249,9 @@ export default function VendorOndcOrdersPage() {
             <span className="vd-dot vd-dot-pulse" style={{ display: "inline-block", color: "var(--vd-ok)", marginRight: "0.4rem" }} />
             Auto-refresh · updated {timeAgo(lastLoaded)}
           </span>
+          <VdButton small onClick={() => { setSound((v) => !v); if (!sound) chime(); }} aria-pressed={sound}>
+            {sound ? "🔔 Sound on" : "🔕 Sound off"}
+          </VdButton>
           <VdButton small icon={<Icon.Refresh />} onClick={() => load()}>Refresh</VdButton>
         </div>
       </div>
@@ -214,6 +272,7 @@ export default function VendorOndcOrdersPage() {
       </div>
 
       {error && <div className="vd-error">{error}</div>}
+      {truncated && <div className="vd-note vd-note-warn">Showing your most recent orders only. Older orders are not listed here.</div>}
 
       {orders === null ? (
         <div className="vd-orders">{[0, 1, 2].map((i) => <Skeleton key={i} h={190} />)}</div>
@@ -234,12 +293,14 @@ export default function VendorOndcOrdersPage() {
             const phone = o.fulfillment?.end?.contact?.phone || o.billing?.phone;
             const name = o.fulfillment?.end?.person?.name || o.billing?.name;
             const pickupAt = pickupWindow(o);
+            const overdue = pickupOverdue(o);
             const units = o.items.reduce((s, i) => s + i.quantity, 0);
             return (
               <article className={`vd-order${o.fulfillmentState === "Pending" && open ? " vd-order-new" : ""}`} key={o._id}>
                 <header className="vd-order-head">
                   <span className="vd-order-id">#{o.orderId}</span>
                   <Badge tone={STATE_TONE[o.state]} dot>{o.state === "Accepted" ? "New" : o.state}</Badge>
+                  {overdue && <Badge tone="warn"><Icon.Alert size={12} /> Pickup time passed</Badge>}
                   <span className="vd-order-time" title={new Date(o.createdAt).toLocaleString("en-IN")}>{timeAgo(o.createdAt)}</span>
                 </header>
                 <div className="vd-order-body">
@@ -272,10 +333,10 @@ export default function VendorOndcOrdersPage() {
                   <Steps o={o} />
                   <span className="vd-spacer" />
                   {open && (
-                    <VdButton small variant="danger" disabled={busy} onClick={() => setConfirmCancel(o)}>Cancel</VdButton>
+                    <VdButton small variant="danger" disabled={busy} onClick={() => { setCancelReason(SELLER_REASONS[0].id); setConfirmCancel(o); }}>Cancel order</VdButton>
                   )}
                   {open && next && (
-                    <VdButton small variant="primary" loading={busy} onClick={() => act(o, next.action)}>{next.label}</VdButton>
+                    <VdButton small variant="primary" loading={busy} onClick={() => (next.action === "picked_up" ? setConfirmPickup(o) : act(o, next.action))}>{next.label}</VdButton>
                   )}
                 </footer>
               </article>
@@ -291,15 +352,39 @@ export default function VendorOndcOrdersPage() {
           actions={
             <>
               <VdButton onClick={() => setConfirmCancel(null)}>Keep order</VdButton>
-              <VdButton variant="primary" style={{ background: "var(--vd-err)", borderColor: "var(--vd-err)" }} loading={busyId === confirmCancel._id} onClick={() => act(confirmCancel, "cancel")}>
-                Cancel order
+              <VdButton variant="primary" style={{ background: "var(--vd-err)", borderColor: "var(--vd-err)" }} loading={busyId === confirmCancel._id} onClick={() => act(confirmCancel, "cancel", cancelReason)}>
+                Yes, cancel order
+              </VdButton>
+            </>
+          }
+        >
+          <div className="vd-field" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="cancel-reason">Why are you cancelling?</label>
+            <select id="cancel-reason" className="vd-select" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>
+              {SELLER_REASONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+            </select>
+          </div>
+          <p className="vd-sub">
+            The buyer app is told the order is cancelled and the stock goes back to your inventory. Frequent seller cancellations can lower your
+            store&apos;s ranking on ONDC.
+          </p>
+        </Dialog>
+      )}
+      {confirmPickup && (
+        <Dialog
+          title={`Hand over order #${confirmPickup.orderId}?`}
+          onClose={() => setConfirmPickup(null)}
+          actions={
+            <>
+              <VdButton onClick={() => setConfirmPickup(null)}>Not yet</VdButton>
+              <VdButton variant="primary" loading={busyId === confirmPickup._id} onClick={() => act(confirmPickup, "picked_up")}>
+                Yes, picked up &amp; paid
               </VdButton>
             </>
           }
         >
           <p className="vd-sub">
-            The buyer app is told the items are unavailable and the stock is returned to your inventory. Frequent seller cancellations can lower your
-            store&apos;s ranking on ONDC.
+            Confirm you have given the items to the buyer and collected <strong>{inr(confirmPickup.total)}</strong>. This marks the order complete and can&apos;t be undone.
           </p>
         </Dialog>
       )}

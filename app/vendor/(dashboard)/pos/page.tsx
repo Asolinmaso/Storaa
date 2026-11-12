@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { POS_PROVIDERS } from "@/lib/pos/providers";
+import { POS_PROVIDERS, providerBrief } from "@/lib/pos/providers";
 import { api, Badge, CopyButton, dateTime, Dialog, Empty, Icon, Skeleton, Switch, timeAgo, useToast, VdButton } from "@/components/vendor/ui";
 
 interface PosStatus {
@@ -30,6 +30,7 @@ interface SyncLog {
 
 interface PosData {
   pos: PosStatus;
+  storeName?: string;
   logs: SyncLog[];
   coverage: { total: number; withSku: number; synced: number };
 }
@@ -69,16 +70,22 @@ function examples(base: string, key: string): Record<Example, { title: string; b
       { "barcode": "8901725181222", "delta": -2 },
       { "sku": "OIL-1L", "price": 189, "mrp": 210 }
     ]
-  }'`,
+  }'
+
+# "stock" = units on your shelf. Units already promised to customers (holds, ONDC orders)
+# are subtracted for you, so they are never sold twice.`,
     },
     sales: {
       title: "Report a bill",
       body: `curl -X POST ${base}/sales \\
   -H "Authorization: Bearer ${k}" \\
   -H "Content-Type: application/json" \\
-  -d '{ "items": [ { "sku": "ATTA-5KG", "quantity": 2 } ] }'
+  -d '{ "billId": "INV-1042", "items": [ { "sku": "ATTA-5KG", "quantity": 2 } ] }'
 
-# A negative quantity records a return and adds the stock back.`,
+# billId makes the call safe to retry: the same bill is never deducted twice.
+# A negative quantity records a return and adds the stock back.
+# Use /sales only for bills the POS rings up. If you also bill Storaa/ONDC pickups in your POS,
+# send your shelf count to /inventory instead so the same item isn't deducted twice.`,
     },
     products: {
       title: "Create / update products",
@@ -118,12 +125,16 @@ export default function PosPage() {
   const [testing, setTesting] = useState(false);
   const [openLog, setOpenLog] = useState<string | null>(null);
   const [origin, setOrigin] = useState("");
+  const [mode, setMode] = useState<"api" | "csv" | null>(null);
+  const [storeName, setStoreName] = useState("my store");
   const { toast, node } = useToast();
 
   const load = useCallback(async () => {
     const d = await api<PosData>("/api/vendor/pos");
     setData(d);
+    if (d.storeName) setStoreName(d.storeName);
     if (d.pos.provider) setProvider(d.pos.provider);
+    if (d.pos.connected) setMode((m) => m ?? "api");
   }, []);
 
   useEffect(() => {
@@ -200,6 +211,8 @@ export default function PosPage() {
   const base = `${origin}/api/pos/v1`;
   const info = POS_PROVIDERS.find((p) => p.id === provider) ?? POS_PROVIDERS[POS_PROVIDERS.length - 1];
   const ex = examples(base, newKey);
+  const brief = providerBrief(base, storeName);
+  const showApi = pos.connected || mode === "api";
   const skuPct = coverage.total ? Math.round((coverage.withSku / coverage.total) * 100) : 0;
 
   return (
@@ -207,18 +220,78 @@ export default function PosPage() {
       <div className="vd-head">
         <div>
           <h2>POS &amp; inventory sync</h2>
-          <p>Connect your billing software so stock and prices on Storaa{" "}and ONDC update automatically whenever you sell at the counter.</p>
+          <p>Keep the stock shown to customers on Storaa and ONDC correct. Connect your billing software, or just upload a stock file whenever you like.</p>
         </div>
         <Badge tone={pos.connected ? "ok" : "neutral"} dot pulse={pos.connected}>{pos.connected ? "Connected" : "Not connected"}</Badge>
       </div>
 
+      {!pos.connected && mode === null && (
+        <section className="vd-card">
+          <div className="vd-card-head">
+            <div>
+              <h3>How do you bill your customers?</h3>
+              <p className="vd-sub">Pick the one that sounds like your shop. You can change your mind later.</p>
+            </div>
+          </div>
+          <div className="vd-providers">
+            <button type="button" className="vd-provider" onClick={() => setMode("csv")}>
+              <span className="vd-provider-logo" style={{ background: "#2f6f3e" }}><Icon.Upload size={16} /></span>
+              <strong>Excel, paper, or a phone app</strong>
+              <span>Upload a stock file (CSV) whenever stock changes. No technical help needed.</span>
+            </button>
+            <button type="button" className="vd-provider" onClick={() => setMode("api")}>
+              <span className="vd-provider-logo" style={{ background: "#6b2f9e" }}><Icon.Link size={16} /></span>
+              <strong>Billing software on a computer</strong>
+              <span>GOFRUGAL, Marg, Tally, Vyapar, Petpooja… Updates stock automatically — your software provider may need to help once.</span>
+            </button>
+          </div>
+        </section>
+      )}
+
+      {!pos.connected && mode === "csv" && (
+        <section className="vd-card">
+          <div className="vd-card-head">
+            <div>
+              <h3>Update stock with a file</h3>
+              <p className="vd-sub">Three steps, no software to connect.</p>
+            </div>
+            <VdButton small onClick={() => setMode(null)}>← Back</VdButton>
+          </div>
+          <ol className="vd-list" style={{ listStyle: "none" }}>
+            {[
+              ["Download your current list", "Click “Download my products” — it opens in Excel."],
+              ["Change the stock (and price) numbers", "Keep the “sku” column as it is: it is how Storaa knows which product is which."],
+              ["Upload it back", "Go to Products → Import and choose your file. Stock on Storaa and ONDC updates straight away."],
+            ].map(([t, d], i) => (
+              <li className="vd-list-row" key={t} style={{ alignItems: "flex-start" }}>
+                <span className="vd-check-icon" style={{ background: "var(--purple-100)", color: "var(--purple)", fontWeight: 700, fontSize: "0.8rem" }}>{i + 1}</span>
+                <div className="vd-list-main">
+                  <div className="vd-check-title">{t}</div>
+                  <div className="vd-check-detail">{d}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "1rem" }}>
+            <a href="/api/vendor/products/export" className="vd-btn vd-btn-primary" download><Icon.Download size={15} /> Download my products</a>
+            <Link href="/vendor/products" className="vd-btn"><Icon.Upload size={15} /> Upload stock file</Link>
+          </div>
+          {skuPct < 100 && (
+            <p className="vd-sub" style={{ marginTop: "0.9rem" }}>
+              Tip: {coverage.total - coverage.withSku} of your {coverage.total} products have no item code (SKU) yet. Give each a short code like ATTA-5KG so uploads match the right product.
+            </p>
+          )}
+        </section>
+      )}
+
+      {showApi && (
       <div className="vd-grid vd-grid-main">
         <div className="vd-grid">
           <section className="vd-card">
             <div className="vd-card-head">
               <div>
                 <h3>{pos.connected ? "Your POS" : "1. Choose your POS"}</h3>
-                <p className="vd-sub">{pos.connected ? "Change it any time; your key keeps working." : "Every POS uses the same secure Storaa API — this tailors the setup steps."}</p>
+                <p className="vd-sub">{pos.connected ? "Change it any time; your key keeps working." : "Every billing software connects the same way — this just tailors the tips below."}</p>
               </div>
             </div>
             <div className="vd-providers">
@@ -246,8 +319,8 @@ export default function PosPage() {
           <section className="vd-card">
             <div className="vd-card-head">
               <div>
-                <h3>{pos.connected ? "API key" : "2. Create an API key"}</h3>
-                <p className="vd-sub">The key lets your POS update this store only. Treat it like a password.</p>
+                <h3>{pos.connected ? "Secret key" : "2. Create your secret key"}</h3>
+                <p className="vd-sub">This key (also called an API key) lets your billing software update this store only. Treat it like a password — only share it with your software provider.</p>
               </div>
             </div>
 
@@ -276,7 +349,7 @@ export default function PosPage() {
               </dl>
             ) : (
               <VdButton variant="primary" icon={<Icon.Key size={16} />} loading={busy} onClick={() => connect("connect")}>
-                Connect {info.name} &amp; create key
+                Create my secret key
               </VdButton>
             )}
 
@@ -295,13 +368,22 @@ export default function PosPage() {
                 <p className="vd-sub">{info.setup}</p>
               </div>
             </div>
+            <div className="vd-note" style={{ marginBottom: "1rem" }}>
+              <strong>Not technical?</strong> Send your software provider the message below (it does not contain your key — send the key separately and privately).
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+                <CopyButton text={brief} label="Copy message for my software provider" className="vd-btn vd-btn-sm vd-btn-primary" />
+                <a className="vd-btn vd-btn-sm" href={`mailto:?subject=${encodeURIComponent("Connect my billing software to Storaa")}&body=${encodeURIComponent(brief)}`}>Email it</a>
+              </div>
+            </div>
             <div className="vd-field" style={{ marginBottom: "1rem" }}>
-              <span className="vd-label">Base URL</span>
+              <span className="vd-label">Web address for your software (base URL)</span>
               <div className="vd-keybox" style={{ borderStyle: "solid", borderColor: "var(--vd-line-strong)", background: "#faf8fc" }}>
                 <code>{base}</code>
                 <CopyButton text={base} className="vd-btn vd-btn-sm" />
               </div>
             </div>
+            <details style={{ marginBottom: "0.5rem" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600, marginBottom: "0.75rem" }}>For developers: endpoints and examples</summary>
             <div className="vd-endpoints" style={{ marginBottom: "1rem" }}>
               {[
                 ["GET", "/ping", "Check the key"],
@@ -332,14 +414,16 @@ export default function PosPage() {
               Products are matched by <strong>SKU</strong>, then <strong>barcode</strong>. Up to 1,000 items per request. Responses: <code className="vd-code-inline">200</code> all applied,{" "}
               <code className="vd-code-inline">207</code> some rows failed (see <code className="vd-code-inline">issues</code>), <code className="vd-code-inline">401</code> bad key.
               Optional header <code className="vd-code-inline">X-Pos-Source</code> labels entries in the sync log.
+              Send <code className="vd-code-inline">billId</code> (or an <code className="vd-code-inline">Idempotency-Key</code> header) so a retried request is applied only once. Limit: 300 requests per minute.
             </p>
+            </details>
           </section>
         </div>
 
         <div className="vd-grid">
           <section className="vd-card">
             <div className="vd-card-head">
-              <h3>Sync settings</h3>
+              <h3>Settings</h3>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div>
@@ -355,12 +439,12 @@ export default function PosPage() {
 
           <section className="vd-card">
             <div className="vd-card-head">
-              <h3>Catalog match rate</h3>
+              <h3>Products your POS can recognise</h3>
               <Badge tone={skuPct === 100 ? "ok" : skuPct > 50 ? "warn" : "err"}>{skuPct}%</Badge>
             </div>
             <div className="vd-progress" aria-label="Products with SKU"><span style={{ width: `${skuPct}%` }} /></div>
             <p className="vd-sub" style={{ marginTop: "0.6rem" }}>
-              {coverage.withSku} of {coverage.total} products have a SKU your POS can match. {coverage.synced} have been updated by the POS.
+              {coverage.withSku} of {coverage.total} products have an item code (SKU) that your POS can match. {coverage.synced} have been updated by the POS.
             </p>
             {skuPct < 100 && (
               <Link href="/vendor/products" className="vd-btn vd-btn-sm" style={{ marginTop: "0.75rem" }}>Add missing SKUs</Link>
@@ -369,9 +453,9 @@ export default function PosPage() {
 
           <section className="vd-card">
             <div className="vd-card-head">
-              <h3>No API? Use CSV</h3>
+              <h3>Prefer a file?</h3>
             </div>
-            <p className="vd-sub">Export items from Tally, BUSY, Vyapar or Excel and upload them. Existing products are updated by SKU or barcode.</p>
+            <p className="vd-sub">Download your products, change the stock in Excel, and upload the file. Existing products are updated by item code (SKU) or barcode.</p>
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
               <Link href="/vendor/products" className="vd-btn vd-btn-sm"><Icon.Upload size={15} /> Import CSV</Link>
               <a href="/api/vendor/products/export" className="vd-btn vd-btn-sm" download><Icon.Download size={15} /> Export CSV</a>
@@ -379,11 +463,12 @@ export default function PosPage() {
           </section>
         </div>
       </div>
+      )}
 
       <section className="vd-card vd-card-flush">
         <div className="vd-card-head">
           <div>
-            <h3>Sync history</h3>
+            <h3>Update history</h3>
             <p className="vd-sub">Last 50 POS calls and CSV imports · kept for 90 days</p>
           </div>
           <VdButton small icon={<Icon.Refresh />} onClick={() => load()}>Refresh</VdButton>
@@ -399,7 +484,7 @@ export default function PosPage() {
                     <th>When</th>
                     <th>Type</th>
                     <th className="vd-hide-sm">Source</th>
-                    <th className="vd-num">Rows</th>
+                    <th className="vd-num">Items</th>
                     <th className="vd-num">Applied</th>
                     <th className="vd-num">Failed</th>
                     <th>Result</th>

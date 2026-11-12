@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import Product from "@/models/Product";
 import PosSyncLog from "@/models/PosSyncLog";
 import { posProduct, upsertProducts } from "@/lib/pos/sync";
-import { readItems, sourceOf, syncResponse, withPosStore } from "@/lib/pos/respond";
+import { once, readPosBody, sourceOf, syncResponse, withPosStore } from "@/lib/pos/respond";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /** The store's catalog. `?updatedSince=ISO` for incremental pulls, `?sku=` for one item. */
 export async function GET(req: Request) {
@@ -42,12 +43,16 @@ export async function GET(req: Request) {
 /** Create / update products in bulk: `{ items: [{ sku, name, category, price, stock, … }] }`. */
 export async function POST(req: Request) {
   return withPosStore(req, async (store) => {
-    const result = await upsertProducts(store, await readItems(req), {
-      kind: "products",
-      source: sourceOf(req, store),
-      allowCreate: !!store.pos?.autoCreateProducts,
-      origin: "pos",
-    });
-    return syncResponse(result);
+    const { items, key } = await readPosBody(req);
+    return once(store, "products", key, async () =>
+      syncResponse(
+        await upsertProducts(store, items, {
+          kind: "products",
+          source: sourceOf(req, store),
+          allowCreate: !!store.pos?.autoCreateProducts,
+          origin: "pos",
+        })
+      )
+    );
   });
 }

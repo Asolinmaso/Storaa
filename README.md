@@ -66,8 +66,24 @@ Storaa can list approved stores and products on the [ONDC](https://ondc.org) ret
 - Only **approved, open** stores and **approved, in-stock** products are published, and only categories listed in `CATEGORY_MAP` ([lib/ondc/mapping.ts](lib/ondc/mapping.ts)); Pet Care, Stationery, Sports & Fitness and Jewelry are not mapped. Category ids there are best-effort and should be aligned with the ONDC taxonomy for the domains you certify.
 - `/confirm` reserves stock atomically and is idempotent per `(bap_id, order id)`; cancelling returns the stock. ONDC orders live in their own `OndcOrder` collection and do not appear in the admin Transactions / Payouts screens.
 - Inbound signatures are checked against the registry (v2.0 lookup, cached 5 min). `ONDC_SKIP_SIGNATURE_VERIFY=true` disables this for local testing and is ignored in production.
-- The `on_*` callback runs after the HTTP response is sent, so it needs a long-lived Node server (`next start`, a VM or a container), not a serverless platform that freezes work after responding.
+- The `on_*` callback runs after the ACK is sent. On Vercel it is kept alive with `waitUntil` ([lib/background.ts](lib/background.ts)), so buyer apps still receive it; on a long-lived Node server it simply continues.
+- `/search` only returns stores within `ONDC_SEARCH_RADIUS_KM` (default 15) of the buyer's `fulfillment.end.location.gps`, and at most `ONDC_SEARCH_MAX_ITEMS` (default 2000) items, so the `on_search` payload stays a sane size.
+- Orders nobody collects are auto-cancelled and their stock returned: after the buyer's pickup window + 2 h, or `ONDC_ORDER_EXPIRY_HOURS` (default 48) when there is no window. A daily Vercel Cron ([vercel.json](vercel.json) → `/api/cron/ondc-expire`) runs it; set `CRON_SECRET` in Vercel for the job to authorise. A vendor opening their orders also sweeps their own store.
+- Vendors are emailed (via `RESEND_API_KEY` / `EMAIL_FROM`) when an order arrives, and the orders page chimes and shows the waiting count in the tab title.
+- `issue`, `issue_status` and `receiver_recon` answer with a clear NACK ("not supported yet") instead of a 404.
+
+### POS sync behaviour
+
+- `stock` sent to `/api/pos/v1/inventory` (and `/products`) means *units on your shelf*; units reserved by active customer holds and open ONDC orders are subtracted automatically so a POS push can never resell them. `delta` and `/sales` adjust atomically in the database.
+- Send `billId` in the body (or an `Idempotency-Key` header) with every `/sales`, `/inventory` and `/products` call: a retried request replays the first response (`"duplicate": true`) instead of being applied twice. Keys are remembered for 7 days.
+- Inventory and sales are applied with bulk writes (1,000 rows ≈ a few DB calls). The API allows 300 requests/min per store and rate-limits repeated bad keys per IP (per server instance).
+- A `/products` update that changes name, category, brand, images or description sends the product back to admin review; the sync response and the vendor's update history say so.
+- If you also ring up Storaa/ONDC pickups in your POS, send your shelf count to `/inventory` rather than reporting those bills to `/sales`, or the item is deducted twice.
+
+### Tests
+
+`npm test` runs unit tests (ONDC signing, geo parsing, expiry, stock maths, rate limiter). `npm run lint` is configured (ESLint, `next/core-web-vitals`).
 
 ### Not built yet
 
-Delivery fulfilment, online payments and settlement terms, returns, IGM (issues & grievances), and bulk catalog push. Error codes, tags and category ids follow the ONDC retail spec as best understood and have **not** been run through ONDC's Pramaan / log-verification tooling.
+Delivery fulfilment, online payments and settlement terms, GST / tax breakup lines in the quote, returns and refunds, IGM (issues & grievances), and bulk catalog push. The packaged-goods declaration is only sent when the vendor states a manufacturer; its address is the store's address. Error codes, tags and category ids follow the ONDC retail spec as best understood and have **not** been run through ONDC's Pramaan / log-verification tooling.

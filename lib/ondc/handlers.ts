@@ -1,5 +1,8 @@
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
+import { runInBackground } from "@/lib/background";
+import { sendEmail } from "@/lib/email";
+import { haversineKm, parseGps } from "@/lib/geo";
 import OndcOrder, {
   type IOndcOrder,
   type OndcFulfillmentState,
@@ -7,9 +10,11 @@ import OndcOrder, {
 } from "@/models/OndcOrder";
 import Product, { type IProduct } from "@/models/Product";
 import Store, { type IStore } from "@/models/Store";
+import User from "@/models/User";
 import { callbackContext, sendCallback } from "./client";
 import { ondcConfig } from "./config";
-import { categoriesForDomain, categoryFor, storeLocation, SUPPORTED_DOMAINS } from "./mapping";
+import { isAbandoned } from "./expiry";
+import { categoriesForDomain, categoryFor, storeGps, storeLocation, SUPPORTED_DOMAINS } from "./mapping";
 import {
   catalogBlock,
   FULFILLMENT_ID,
@@ -79,7 +84,27 @@ async function search(req: BecknRequest): Promise<HandlerResult | null> {
   }
   if (categories.length === 0) return null;
 
+  const cfg = ondcConfig();
+  const providerId = intent.provider?.id;
+  if (providerId && !isValidObjectId(providerId)) return null;
+
+  // Stores first: only open, approved, opted-in stores near the buyer's search location.
+  const candidates = await Store.find({
+    status: "approved",
+    isOpen: true,
+    ondcEnabled: true,
+    ...(providerId ? { _id: providerId } : {}),
+  }).limit(2000);
+  const buyerGps = parseGps(intent.fulfillment?.end?.location?.gps);
+  const stores = candidates.filter((s) => {
+    if (providerId || !buyerGps) return true;
+    const here = parseGps(storeGps(s));
+    return !!here && haversineKm(buyerGps, here) <= cfg.searchRadiusKm;
+  });
+  if (stores.length === 0) return null;
+
   const filter: Record<string, unknown> = {
+    storeId: { $in: stores.map((s) => s._id) },
     category: { $in: categories },
     stock: { $gt: 0 },
     "ondc.listed": { $ne: false },
@@ -87,24 +112,14 @@ async function search(req: BecknRequest): Promise<HandlerResult | null> {
   };
   const name = intent.item?.descriptor?.name ?? intent.descriptor?.name;
   if (name) filter.name = { $regex: escapeRegex(String(name)), $options: "i" };
-  const providerId = intent.provider?.id;
-  if (providerId) {
-    if (!isValidObjectId(providerId)) return null;
-    filter.storeId = providerId;
-  }
 
-  const products = await Product.find(filter).limit(5000);
+  // Capped so one search can't produce a multi-megabyte on_search.
+  const products = await Product.find(filter).sort({ updatedAt: -1 }).limit(cfg.searchMaxItems);
   const byStore = new Map<string, IProduct[]>();
   for (const p of products) {
     const key = String(p.storeId);
     byStore.set(key, [...(byStore.get(key) ?? []), p]);
   }
-  const stores = await Store.find({
-    _id: { $in: Array.from(byStore.keys()) },
-    status: "approved",
-    isOpen: true,
-    ondcEnabled: true,
-  });
 
   const providers = stores
     .map((s) => providerBlock(s, byStore.get(String(s._id)) ?? []))
@@ -286,6 +301,7 @@ async function confirm(req: BecknRequest): Promise<HandlerResult> {
       fulfillment: order.fulfillments?.[0] ?? {},
       payment: order.payment ?? {},
     });
+    runInBackground(notifyVendorOfOrder(doc, r.store));
     return { message: { order: orderBlock(doc, r.store) } };
   } catch (err) {
     await releaseStock(items);
@@ -295,6 +311,24 @@ async function confirm(req: BecknRequest): Promise<HandlerResult> {
       if (dup) return existingOrderResult(dup);
     }
     throw err;
+  }
+}
+
+/** Emails the shop owner so a new ONDC order isn't missed. Failures are logged, never thrown. */
+async function notifyVendorOfOrder(order: IOndcOrder, store: IStore) {
+  try {
+    const owner = store.ownerId ? await User.findById(store.ownerId).select("email") : null;
+    const to = owner?.email || store.email;
+    if (!to) return;
+    const lines = order.items.map((i) => `  ${i.quantity} x ${i.name}`).join("\n");
+    await sendEmail(
+      to,
+      `New ONDC order #${order.orderId} - Rs ${order.total.toFixed(2)}`,
+      `You have a new self-pickup order on ONDC for ${store.name}.\n\n${lines}\n\nTo collect at pickup: Rs ${order.total.toFixed(2)}\n\n` +
+        `Open "ONDC orders" in your Storaa vendor dashboard to pack it. The stock has already been reserved for you.`
+    );
+  } catch (err) {
+    console.error("[ONDC] could not email the vendor about a new order:", err);
   }
 }
 
@@ -331,7 +365,7 @@ export async function cancelOrder(
       fulfillmentState: "Cancelled",
       cancellation: { reasonId, cancelledBy },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (updated) await releaseStock(updated.items);
   return updated;
@@ -442,51 +476,87 @@ const TRANSITIONS: Record<
   picked_up: { from: "Packed", state: "Completed", fulfillmentState: "Order-picked-up" },
 };
 
+/** Reasons a seller can give when cancelling (ids as shown in the vendor UI). */
+export const SELLER_CANCEL_REASONS: Record<string, string> = {
+  "010": "Items not available",
+  "011": "Buyer did not turn up",
+  "005": "Store cannot fulfil this order",
+};
 /** Default reason when a seller cancels: "one or more items not available". */
 const SELLER_CANCEL_REASON = "010";
+/** Used when an order is auto-cancelled because nobody collected it. */
+const EXPIRED_REASON = "011";
+
+/** Tells the buyer app about an order change. Never throws: the order has already changed. */
+async function notifyBuyerApp(updated: IOndcOrder, callbackAction: "on_status" | "on_cancel") {
+  try {
+    const store = await Store.findById(updated.storeId);
+    if (!store) return;
+    const context = callbackContext(
+      {
+        domain: updated.domain,
+        country: "IND",
+        city: updated.city,
+        core_version: updated.coreVersion,
+        bap_id: updated.bapId,
+        bap_uri: updated.bapUri,
+        transaction_id: updated.transactionId,
+      },
+      callbackAction,
+      crypto.randomUUID()
+    );
+    await sendCallback(context, { message: { order: orderBlock(updated, store) } });
+  } catch (err) {
+    console.error(`[ONDC] could not notify buyer app of ${callbackAction}:`, err);
+  }
+}
 
 /** Applies a vendor action to an order and pushes the update to the buyer app. Null if not allowed. */
 export async function applySellerAction(
   orderDoc: IOndcOrder,
-  action: SellerAction
+  action: SellerAction,
+  cancelReasonId: string = SELLER_CANCEL_REASON
 ): Promise<IOndcOrder | null> {
   let updated: IOndcOrder | null;
   let callbackAction: "on_status" | "on_cancel" = "on_status";
 
   if (action === "cancel") {
-    updated = await cancelOrder(orderDoc, "SELLER", SELLER_CANCEL_REASON);
+    const reason = cancelReasonId in SELLER_CANCEL_REASONS || cancelReasonId === EXPIRED_REASON ? cancelReasonId : SELLER_CANCEL_REASON;
+    updated = await cancelOrder(orderDoc, "SELLER", reason);
     callbackAction = "on_cancel";
   } else {
     const t = TRANSITIONS[action];
     updated = await OndcOrder.findOneAndUpdate(
       { _id: orderDoc._id, fulfillmentState: t.from, state: { $in: OPEN_STATES } },
       { state: t.state, fulfillmentState: t.fulfillmentState },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
   if (!updated) return null;
 
-  // The order has already changed; a failed notification must not fail the vendor's action.
-  try {
-    const store = await Store.findById(updated.storeId);
-    if (store) {
-      const context = callbackContext(
-        {
-          domain: updated.domain,
-          country: "IND",
-          city: updated.city,
-          core_version: updated.coreVersion,
-          bap_id: updated.bapId,
-          bap_uri: updated.bapUri,
-          transaction_id: updated.transactionId,
-        },
-        callbackAction,
-        crypto.randomUUID()
-      );
-      void sendCallback(context, { message: { order: orderBlock(updated, store) } });
-    }
-  } catch (err) {
-    console.error(`[ONDC] could not notify buyer app of ${callbackAction}:`, err);
-  }
+  // Kept alive past the response so the buyer app is really told (see runInBackground).
+  runInBackground(notifyBuyerApp(updated, callbackAction));
   return updated;
+}
+
+/**
+ * Cancels open orders nobody collected (pickup window + grace, or ONDC_ORDER_EXPIRY_HOURS), returning
+ * their stock and notifying the buyer app. Safe to call often; returns how many were cancelled.
+ */
+export async function expireStaleOrders(opts: { storeId?: IStore["_id"]; limit?: number } = {}): Promise<number> {
+  const cfg = ondcConfig();
+  if (!cfg.enabled) return 0;
+  const open = await OndcOrder.find({
+    state: { $in: OPEN_STATES },
+    createdAt: { $lt: new Date(Date.now() - 3600_000) },
+    ...(opts.storeId ? { storeId: opts.storeId } : {}),
+  })
+    .sort({ createdAt: 1 })
+    .limit(opts.limit ?? 200);
+  let expired = 0;
+  for (const order of open) {
+    if (!isAbandoned(order, new Date(), cfg.orderExpiryHours)) continue;
+    if (await applySellerAction(order, "cancel", EXPIRED_REASON)) expired++;
+  }
+  return expired;
 }

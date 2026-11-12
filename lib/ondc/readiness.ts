@@ -10,6 +10,8 @@ export interface ReadinessCheck {
   label: string;
   level: CheckLevel;
   detail: string;
+  /** Where the vendor goes to fix it (only set when something needs fixing). */
+  action?: { label: string; href: string };
 }
 
 const isApproved = (p: IProduct) => !p.status || p.status === "approved";
@@ -31,7 +33,7 @@ export function productIssues(p: IProduct): { errors: string[]; warnings: string
   if (categoryFor(p.category)?.domain === "ONDC:RET10" && (!p.ondc?.vegType || p.ondc.vegType === "na")) {
     warnings.push("Grocery items should say veg / non-veg");
   }
-  if (!p.ondc?.manufacturer && !p.brand) warnings.push("No brand or manufacturer (needed for packaged goods)");
+  if (!p.ondc?.manufacturer) warnings.push("Add the manufacturer / packer name (legally required for packaged goods)");
   return { errors, warnings };
 }
 
@@ -55,6 +57,7 @@ export function storeChecks(store: IStore, products: IProduct[]): ReadinessCheck
       label: "Store approved",
       level: store.status === "approved" ? "ok" : "error",
       detail: store.status === "approved" ? "Your store passed verification." : "Your store must be approved before it can be listed.",
+      ...(store.status !== "approved" && { action: { label: "View store details", href: "/vendor/store-details" } }),
     },
     {
       id: "location",
@@ -65,24 +68,28 @@ export function storeChecks(store: IStore, products: IProduct[]): ReadinessCheck
         : gps
           ? "Using the platform's default location. Set your exact store location so nearby buyers find you."
           : "Set your store's coordinates — buyer apps search by distance.",
+      ...(!hasOwnGps && { action: { label: "Set location", href: "#pickup-location" } }),
     },
     {
       id: "open",
       label: "Store open for orders",
       level: store.isOpen ? "ok" : "warn",
       detail: store.isOpen ? "Accepting orders." : "Store is paused — it is hidden from ONDC search.",
+      ...(!store.isOpen && { action: { label: "Reopen store", href: "/vendor/store-status" } }),
     },
     {
       id: "tax",
       label: "Tax details",
       level: store.gstNumber ? "ok" : "warn",
-      detail: store.gstNumber ? `GSTIN ${store.gstNumber}` : "No GSTIN on file. Some buyer apps require it for invoices.",
+      detail: store.gstNumber ? `GST number ${store.gstNumber}` : "No GST number on file. Some buyer apps require it for invoices.",
+      ...(!store.gstNumber && { action: { label: "Add GST number", href: "/vendor/store-details" } }),
     },
     {
       id: "catalog",
       label: "Products ready to list",
       level: listable > 0 ? "ok" : "error",
       detail: `${listable} of ${products.length} products can be listed.`,
+      ...(listable === 0 && { action: { label: "Fix products", href: "/vendor/products" } }),
     },
     {
       id: "optin",

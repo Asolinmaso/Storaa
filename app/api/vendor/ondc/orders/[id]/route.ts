@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isValidObjectId } from "mongoose";
 import { connectDB } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { applySellerAction, type SellerAction } from "@/lib/ondc/handlers";
+import { applySellerAction, SELLER_CANCEL_REASONS, type SellerAction } from "@/lib/ondc/handlers";
 import { ondcConfig } from "@/lib/ondc/config";
 import OndcOrder from "@/models/OndcOrder";
 import Store from "@/models/Store";
@@ -22,10 +22,16 @@ export async function POST(
     return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const { action } = (await req.json().catch(() => ({}))) as { action?: SellerAction };
+  const { action, reasonId } = (await req.json().catch(() => ({}))) as { action?: SellerAction; reasonId?: string };
   if (!action || !ACTIONS.includes(action)) {
     return NextResponse.json(
       { code: "VALIDATION_ERROR", message: `action must be one of ${ACTIONS.join(", ")}.` },
+      { status: 400 }
+    );
+  }
+  if (reasonId !== undefined && !(reasonId in SELLER_CANCEL_REASONS)) {
+    return NextResponse.json(
+      { code: "VALIDATION_ERROR", message: `reasonId must be one of ${Object.keys(SELLER_CANCEL_REASONS).join(", ")}.` },
       { status: 400 }
     );
   }
@@ -38,7 +44,7 @@ export async function POST(
   const order = store && (await OndcOrder.findOne({ _id: params.id, storeId: store._id }));
   if (!order) return NextResponse.json({ code: "NOT_FOUND" }, { status: 404 });
 
-  const updated = await applySellerAction(order, action);
+  const updated = await applySellerAction(order, action, reasonId);
   if (!updated) {
     return NextResponse.json(
       {

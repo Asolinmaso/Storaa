@@ -29,7 +29,18 @@ export interface OndcConfig {
   supportUri: string;
   /** Dev only: accept inbound requests without verifying signatures. */
   skipVerify: boolean;
+  /** Only stores within this many km of the buyer's search location are returned. */
+  searchRadiusKm: number;
+  /** Cap on items returned by one /search so the on_search payload stays a sane size. */
+  searchMaxItems: number;
+  /** Hours after which an uncollected order without a pickup window is auto-cancelled. */
+  orderExpiryHours: number;
 }
+
+const positive = (v: string | undefined, fallback: number) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
 
 export function ondcConfig(): OndcConfig {
   const env = process.env;
@@ -51,6 +62,9 @@ export function ondcConfig(): OndcConfig {
     supportPhone: env.ONDC_SUPPORT_PHONE ?? "",
     supportEmail: env.ONDC_SUPPORT_EMAIL ?? "",
     supportUri: env.ONDC_SUPPORT_URI ?? "",
+    searchRadiusKm: positive(env.ONDC_SEARCH_RADIUS_KM, 15),
+    searchMaxItems: Math.floor(positive(env.ONDC_SEARCH_MAX_ITEMS, 2000)),
+    orderExpiryHours: positive(env.ONDC_ORDER_EXPIRY_HOURS, 48),
     // Never skippable in production.
     skipVerify:
       env.ONDC_SKIP_SIGNATURE_VERIFY === "true" &&

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { ReadinessCheck } from "@/lib/ondc/readiness";
+import { parseCoordinates } from "@/lib/geo";
 import { api, Badge, Empty, Icon, inr, Skeleton, Switch, useToast, VdButton } from "@/components/vendor/ui";
 
 interface Item {
@@ -45,6 +46,7 @@ export default function OndcNetworkPage() {
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [locating, setLocating] = useState(false);
+  const [pasted, setPasted] = useState("");
   const [savingLoc, setSavingLoc] = useState(false);
   const [tab, setTab] = useState<Tab>("issues");
   const [showJson, setShowJson] = useState(false);
@@ -110,6 +112,18 @@ export default function OndcNetworkPage() {
     }
   }
 
+  /** Accepts "13.08, 80.27" or a Google Maps link and fills both fields. */
+  function onPaste(text: string) {
+    setPasted(text);
+    if (!text.trim()) return;
+    const c = parseCoordinates(text);
+    if (c) {
+      setLat(c.lat.toFixed(6));
+      setLng(c.lng.toFixed(6));
+      toast("Location read from what you pasted. Check it on the map, then save.");
+    }
+  }
+
   function useMyLocation() {
     if (!navigator.geolocation) {
       toast("Your browser can't share location. Enter the coordinates instead.", true);
@@ -157,6 +171,11 @@ export default function OndcNetworkPage() {
   const passed = checks.filter((c) => c.level === "ok").length;
   const blocking = checks.filter((c) => c.level === "error" && c.id !== "optin");
   const canList = platform.enabled && store.status === "approved";
+  const cantListWhy = !platform.enabled
+    ? "ONDC isn't switched on for Storaa yet."
+    : store.status !== "approved"
+      ? "Your store must be approved by Storaa before you can list it."
+      : "";
   const latValid = lat !== "" && Math.abs(Number(lat)) <= 90 && Number.isFinite(Number(lat));
   const lngValid = lng !== "" && Math.abs(Number(lng)) <= 180 && Number.isFinite(Number(lng));
   const locChanged = lat !== String(store.latitude ?? "") || lng !== String(store.longitude ?? "");
@@ -181,6 +200,7 @@ export default function OndcNetworkPage() {
           onChange={setListing}
           label={store.ondcEnabled ? "Listed" : "List my store"}
         />
+        {cantListWhy && <p className="vd-sub" style={{ flexBasis: "100%", margin: 0 }}>{cantListWhy}</p>}
       </section>
 
       {!platform.enabled && (
@@ -210,7 +230,7 @@ export default function OndcNetworkPage() {
           <span className="vd-stat-foot">of {counts.all} in your catalog</span>
         </div>
         <div className="vd-stat">
-          <span className="vd-stat-label"><Icon.Network size={16} /> Buyer apps</span>
+          <span className="vd-stat-label"><Icon.Network size={16} /> ONDC apps that ordered</span>
           <span className="vd-stat-value">{stats.buyerApps.length}</span>
           <span className="vd-stat-foot" title={stats.buyerApps.join(", ")}>{stats.buyerApps.slice(0, 2).join(", ") || "No orders yet"}</span>
         </div>
@@ -234,6 +254,13 @@ export default function OndcNetworkPage() {
                 <div style={{ minWidth: 0 }}>
                   <div className="vd-check-title">{c.label}</div>
                   <div className="vd-check-detail">{c.detail}</div>
+                  {c.action && (
+                    c.action.href.startsWith("#") ? (
+                      <a className="vd-btn vd-btn-sm" style={{ marginTop: "0.4rem" }} href={c.action.href}>{c.action.label}</a>
+                    ) : (
+                      <Link className="vd-btn vd-btn-sm" style={{ marginTop: "0.4rem" }} href={c.action.href}>{c.action.label}</Link>
+                    )
+                  )}
                 </div>
               </div>
             ))}
@@ -241,7 +268,7 @@ export default function OndcNetworkPage() {
         </section>
 
         <div className="vd-grid">
-          <section className="vd-card">
+          <section className="vd-card" id="pickup-location">
             <div className="vd-card-head">
               <div>
                 <h3>Pickup location</h3>
@@ -250,6 +277,10 @@ export default function OndcNetworkPage() {
               {store.latitude != null ? <Badge tone="ok" dot>Set</Badge> : <Badge tone="err" dot>Missing</Badge>}
             </div>
             <p className="vd-sub" style={{ marginBottom: "0.85rem" }}><Icon.Pin size={14} /> {store.address}</p>
+            <div className="vd-field" style={{ marginBottom: "0.85rem" }}>
+              <label htmlFor="ondc-paste">Easiest: paste a Google Maps link or the numbers</label>
+              <input id="ondc-paste" className="vd-input" placeholder="Paste a Google Maps link, or 13.0827, 80.2707" value={pasted} onChange={(e) => onPaste(e.target.value)} />
+            </div>
             <div className="vd-form-grid">
               <div className="vd-field">
                 <label htmlFor="ondc-lat">Latitude</label>
@@ -271,7 +302,7 @@ export default function OndcNetworkPage() {
                 Save location
               </VdButton>
             </div>
-            <p className="vd-sub" style={{ marginTop: "0.6rem" }}>Tip: open Google Maps, long-press your shop and copy the numbers shown.</p>
+            <p className="vd-sub" style={{ marginTop: "0.6rem" }}>How: open Google Maps, find your shop, tap <strong>Share</strong> and copy the link — then paste it above. Or stand in your shop and press &quot;Use my current location&quot;.</p>
           </section>
 
           <section className="vd-card">
@@ -301,7 +332,7 @@ export default function OndcNetworkPage() {
         <div className="vd-card-head">
           <div>
             <h3>Catalog on ONDC</h3>
-            <p className="vd-sub">Only approved, in-stock products in ONDC categories are published. Hover a badge to see why.</p>
+            <p className="vd-sub">Only approved, in-stock products in ONDC categories are published. The reason a product isn&apos;t listed is shown under its name.</p>
           </div>
           <div className="vd-tabs" role="tablist">
             {(["issues", "ready", "hidden", "all"] as Tab[]).map((t) => (
@@ -325,11 +356,11 @@ export default function OndcNetworkPage() {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th className="vd-hide-sm">ONDC category</th>
+                    <th className="vd-hide-sm">Sold on ONDC as</th>
                     <th className="vd-num">Price</th>
                     <th className="vd-num vd-hide-sm">Stock</th>
                     <th>Status</th>
-                    <th className="vd-num">Show on ONDC</th>
+                    <th className="vd-num">Sell on ONDC</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -340,18 +371,25 @@ export default function OndcNetworkPage() {
                           <span className="vd-thumb" style={i.image ? { backgroundImage: `url(${i.image})` } : undefined}>{!i.image && "📦"}</span>
                           <div style={{ minWidth: 0 }}>
                             <div className="vd-prod-name">{i.name}</div>
-                            <div className="vd-prod-meta">
-                              {i.errors[0] || i.warnings[0] || i.category}
-                              {i.errors.length + i.warnings.length > 1 ? ` (+${i.errors.length + i.warnings.length - 1} more)` : ""}
-                            </div>
+                            {i.errors.length + i.warnings.length === 0 ? (
+                              <div className="vd-prod-meta">{i.category}</div>
+                            ) : (
+                              <ul className="vd-prod-meta" style={{ margin: 0, paddingLeft: "1rem" }}>
+                                {i.errors.map((m) => <li key={m} style={{ color: "var(--vd-err)" }}>{m}</li>)}
+                                {i.warnings.map((m) => <li key={m} style={{ color: "var(--vd-warn)" }}>{m}</li>)}
+                              </ul>
+                            )}
+                            {i.errors.length + i.warnings.length > 0 && (
+                              <Link href="/vendor/products" className="vd-sub" style={{ color: "var(--purple)", fontWeight: 600 }}>Fix in Products →</Link>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="vd-hide-sm">{i.ondcCategory ?? <span className="vd-sub">Not on ONDC</span>}</td>
+                      <td className="vd-hide-sm">{i.ondcCategory ?? <span className="vd-sub">Not sold on ONDC</span>}</td>
                       <td className="vd-num">{inr(i.price)}</td>
                       <td className="vd-num vd-hide-sm">{i.stock}</td>
                       <td>
-                        <span title={[...i.errors, ...i.warnings].join("\n") || "Ready"}>
+                        <span>
                           {!i.listed ? <Badge>Hidden</Badge> : i.errors.length ? <Badge tone="err">Not listed</Badge> : i.warnings.length ? <Badge tone="warn">Listed · tips</Badge> : <Badge tone="ok">Listed</Badge>}
                         </span>
                       </td>
@@ -371,10 +409,10 @@ export default function OndcNetworkPage() {
         <div className="vd-card-head">
           <div>
             <h3>What buyer apps receive</h3>
-            <p className="vd-sub">A live preview of your store in the ONDC <code className="vd-code-inline">on_search</code> catalog (first 3 items).</p>
+            <p className="vd-sub">This is how your shop and products look to people searching on ONDC apps (first 3 products).</p>
           </div>
           {data.preview && (
-            <VdButton small onClick={() => setShowJson((v) => !v)}>{showJson ? "Hide" : "Show"} raw JSON</VdButton>
+            <VdButton small onClick={() => setShowJson((v) => !v)}>{showJson ? "Hide" : "Show"} technical details</VdButton>
           )}
         </div>
         {!data.preview ? (

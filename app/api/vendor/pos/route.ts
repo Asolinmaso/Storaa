@@ -30,7 +30,7 @@ export async function GET() {
     Product.countDocuments({ storeId: store._id, sku: { $gt: "" } }),
     Product.countDocuments({ storeId: store._id, posSyncedAt: { $ne: null } }),
   ]);
-  return NextResponse.json({ pos: status(store), logs, coverage: { total, withSku, synced } });
+  return NextResponse.json({ pos: status(store), storeName: store.name, logs, coverage: { total, withSku, synced } });
 }
 
 /** `{ action: "connect" | "rotate", provider }` — returns a new API key, shown once. */
