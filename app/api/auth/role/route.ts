@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const user = await User.findByIdAndUpdate(
       session.userId,
       { role },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!user) {
       return NextResponse.json(

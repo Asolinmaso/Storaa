@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { connectDB } from "@/lib/db";
 import { expireStaleOrders } from "@/lib/ondc/handlers";
+import { expireStaleHolds } from "@/lib/holds";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ function authorised(req: Request): boolean {
 }
 
 /**
- * Cancels ONDC orders nobody collected and returns their stock. Vercel Cron calls this daily
+ * Cancels ONDC orders and unpaid in-app holds nobody collected, and returns their stock. Vercel Cron calls this daily
  * (vercel.json) and sends `Authorization: Bearer $CRON_SECRET`; vendors' order lists also sweep
  * their own store, so expiry still happens promptly between runs.
  */
@@ -27,5 +28,6 @@ export async function GET(req: Request) {
   if (!authorised(req)) return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });
   await connectDB();
   const expired = await expireStaleOrders({ limit: 500 });
-  return NextResponse.json({ ok: true, expired });
+  const holdsReleased = await expireStaleHolds({ limit: 500 });
+  return NextResponse.json({ ok: true, expired, holdsReleased });
 }

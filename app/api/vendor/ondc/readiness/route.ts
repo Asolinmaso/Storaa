@@ -6,6 +6,7 @@ import { ondcConfig } from "@/lib/ondc/config";
 import { productIssues, storeChecks } from "@/lib/ondc/readiness";
 import { categoryFor, storeLocation } from "@/lib/ondc/mapping";
 import { providerBlock } from "@/lib/ondc/messages";
+import { networkStatus } from "@/lib/ondc/network";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,10 @@ export async function GET() {
   const { store, res } = await vendorStore();
   if (res) return res;
   const cfg = ondcConfig();
-  const products = await Product.find({ storeId: store._id }).sort({ name: 1 });
+  const [products, network] = await Promise.all([
+    Product.find({ storeId: store._id }).sort({ name: 1 }),
+    networkStatus(),
+  ]);
 
   const items = products.map((p) => {
     const { errors, warnings } = productIssues(p);
@@ -58,7 +62,8 @@ export async function GET() {
       enabled: cfg.enabled,
       subscriberId: cfg.subscriberId,
       registry: cfg.registryUrl,
-      environment: /preprod|staging/.test(cfg.registryUrl) ? "Pre-production" : cfg.registryUrl ? "Production" : "Not configured",
+      environment: network.environment,
+      network: network.state,
       cityCode: cfg.cityCode,
     },
     store: {
@@ -70,7 +75,7 @@ export async function GET() {
       longitude: store.longitude,
       address: store.address,
     },
-    checks: storeChecks(store, products),
+    checks: storeChecks(store, products, network),
     items,
     stats: {
       orders: orderStats?.orders ?? 0,

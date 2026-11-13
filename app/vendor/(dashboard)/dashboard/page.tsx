@@ -9,6 +9,8 @@ import OndcOrder from "@/models/OndcOrder";
 import PosSyncLog from "@/models/PosSyncLog";
 import { ondcConfig } from "@/lib/ondc/config";
 import { storeChecks } from "@/lib/ondc/readiness";
+import { networkStatus } from "@/lib/ondc/network";
+import { indiaDate } from "@/lib/holds";
 import { providerName } from "@/lib/pos/providers";
 import StoreOpenToggle from "@/components/vendor/StoreOpenToggle";
 import { Icon } from "@/components/vendor/icons";
@@ -35,9 +37,9 @@ export default async function VendorDashboardPage() {
 
   const cfg = ondcConfig();
   const since = new Date(Date.now() - 30 * 24 * 3600 * 1000);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = indiaDate();
 
-  const [products, holdsAgg, activeHolds, todaysHolds, ondcAgg, recentOndc, recentHolds, lastSync] = await Promise.all([
+  const [products, holdsAgg, activeHolds, todaysHolds, ondcAgg, recentOndc, recentHolds, lastSync, network] = await Promise.all([
     Product.find({ storeId: store._id }).select("name stock lowStockThreshold status images emoji price ondc category unit brand mrp").lean(),
     Hold.aggregate([
       { $match: { storeId: store._id, createdAt: { $gte: since }, status: { $ne: "cancelled" } } },
@@ -61,6 +63,7 @@ export default async function VendorDashboardPage() {
     cfg.enabled ? OndcOrder.find({ storeId: store._id }).sort({ createdAt: -1 }).limit(5).lean() : Promise.resolve([]),
     Hold.find({ storeId: store._id }).sort({ createdAt: -1 }).limit(5).lean(),
     PosSyncLog.findOne({ storeId: store._id }).sort({ createdAt: -1 }).lean(),
+    cfg.enabled ? networkStatus() : Promise.resolve(null),
   ]);
 
   const approved = products.filter((p) => !p.status || p.status === "approved").length;
@@ -73,7 +76,7 @@ export default async function VendorDashboardPage() {
   const ondc30 = (ondcAgg as { count: number; open: number; value: number }[])[0] ?? { count: 0, open: 0, value: 0 };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const checks = cfg.enabled ? storeChecks(store, products as any) : [];
+  const checks = cfg.enabled && network ? storeChecks(store, products as any, network) : [];
   const passed = checks.filter((c) => c.level === "ok").length;
   const score = checks.length ? Math.round((passed / checks.length) * 100) : 0;
 
@@ -83,7 +86,7 @@ export default async function VendorDashboardPage() {
   if (out.length > 0) alerts.push({ tone: "err", text: `${out.length} product${out.length > 1 ? "s are" : " is"} out of stock and hidden from buyers`, href: "/vendor/products?stock=out", cta: "Restock" });
   if (low.length > 0) alerts.push({ tone: "warn", text: `${low.length} product${low.length > 1 ? "s are" : " is"} running low`, href: "/vendor/products?stock=low", cta: "Review" });
   if (pending > 0) alerts.push({ tone: "warn", text: `${pending} product${pending > 1 ? "s are" : " is"} awaiting admin approval`, href: "/vendor/products?status=under_review", cta: "See products" });
-  if (cfg.enabled && !store.ondcEnabled) alerts.push({ tone: "info", text: "Your store is not listed on ONDC yet — reach buyers on Paytm, Magicpin, Pincode and more", href: "/vendor/ondc", cta: "Go live" });
+  if (cfg.enabled && !store.ondcEnabled) alerts.push({ tone: "info", text: "Your store is not listed on ONDC yet — let shoppers on ONDC buyer apps find you", href: "/vendor/ondc", cta: "Go live" });
 
   const recent = [
     ...recentOndc.map((o) => ({

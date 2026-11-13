@@ -53,7 +53,7 @@ export async function PATCH(req: Request) {
 
     await connectDB();
     const user = await User.findByIdAndUpdate(session.userId, update, {
-      new: true,
+      returnDocument: "after",
     }).select(PROFILE_FIELDS);
     if (!user) {
       return NextResponse.json({ code: "UNAUTHORIZED" }, { status: 401 });

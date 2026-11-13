@@ -2,6 +2,7 @@ import type { IProduct } from "@/models/Product";
 import type { IStore } from "@/models/Store";
 import { ondcConfig } from "./config";
 import { categoryFor, storeGps, unitMeasure } from "./mapping";
+import { describeNetwork, type NetworkStatus } from "./network";
 
 export type CheckLevel = "ok" | "warn" | "error";
 
@@ -37,8 +38,9 @@ export function productIssues(p: IProduct): { errors: string[]; warnings: string
   return { errors, warnings };
 }
 
-export function storeChecks(store: IStore, products: IProduct[]): ReadinessCheck[] {
+export function storeChecks(store: IStore, products: IProduct[], network: NetworkStatus): ReadinessCheck[] {
   const cfg = ondcConfig();
+  const net = describeNetwork(network);
   const gps = storeGps(store);
   const hasOwnGps = store.latitude != null && store.longitude != null;
   const listable = products.filter((p) => productIssues(p).errors.length === 0).length;
@@ -46,11 +48,9 @@ export function storeChecks(store: IStore, products: IProduct[]): ReadinessCheck
   return [
     {
       id: "platform",
-      label: "Storaa is connected to ONDC",
-      level: cfg.enabled ? "ok" : "error",
-      detail: cfg.enabled
-        ? `Seller app ${cfg.subscriberId || "(subscriber id not set)"} · registry ${cfg.registryUrl.replace(/^https?:\/\//, "") || "not set"}`
-        : "The platform's ONDC integration is switched off. Contact Storaa support.",
+      label: "Storaa is approved on ONDC",
+      level: net.level,
+      detail: net.detail,
     },
     {
       id: "approved",

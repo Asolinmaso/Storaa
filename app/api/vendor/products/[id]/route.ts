@@ -30,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const product = await Product.findOneAndUpdate(
       { _id: params.id, storeId: store._id },
       { ...toMongoUpdate(parsed.data), ...reviewUpdate(current, parsed.data) },
-      { new: true }
+      { returnDocument: "after" }
     );
     if (!product) return notFound();
     return NextResponse.json({ product });

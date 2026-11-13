@@ -48,7 +48,7 @@ export async function POST(req: Request) {
         $or: [{ status: "approved" }, { status: { $exists: false } }],
       },
       { $inc: { stock: -qty } },
-      { new: true }
+      { returnDocument: "after" }
     ).catch(() => null);
     if (!product) {
       const exists = await Product.exists({ _id: productId }).catch(() => null);

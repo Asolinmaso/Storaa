@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { ReadinessCheck } from "@/lib/ondc/readiness";
 import { parseCoordinates } from "@/lib/geo";
-import { api, Badge, Empty, Icon, inr, Skeleton, Switch, useToast, VdButton } from "@/components/vendor/ui";
+import { api, Badge, Dialog, Empty, Icon, inr, Skeleton, Switch, useToast, VdButton } from "@/components/vendor/ui";
 
 interface Item {
   _id: string;
@@ -20,7 +20,7 @@ interface Item {
 }
 
 interface Readiness {
-  platform: { enabled: boolean; subscriberId: string; registry: string; environment: string; cityCode: string };
+  platform: { enabled: boolean; subscriberId: string; registry: string; environment: string; network: string; cityCode: string };
   store: { name: string; status: string; ondcEnabled: boolean; isOpen: boolean; latitude: number | null; longitude: number | null; address: string };
   checks: ReadinessCheck[];
   items: Item[];
@@ -50,6 +50,7 @@ export default function OndcNetworkPage() {
   const [savingLoc, setSavingLoc] = useState(false);
   const [tab, setTab] = useState<Tab>("issues");
   const [showJson, setShowJson] = useState(false);
+  const [confirmOff, setConfirmOff] = useState(false);
   const { toast, node } = useToast();
 
   const load = useCallback(async () => {
@@ -91,11 +92,12 @@ export default function OndcNetworkPage() {
     try {
       await api("/api/vendor/store", { method: "PATCH", json: { ondcEnabled: next } });
       await load();
-      toast(next ? "Your store is now listed on ONDC" : "Your store has been removed from ONDC");
+      toast(next ? "Done — your store is switched on for ONDC" : "Done — your store is no longer shown on ONDC. Storaa and your POS keep working as before.");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Could not update", true);
     } finally {
       setBusy(false);
+      setConfirmOff(false);
     }
   }
 
@@ -169,7 +171,9 @@ export default function OndcNetworkPage() {
 
   const { platform, store, checks, stats } = data;
   const passed = checks.filter((c) => c.level === "ok").length;
-  const blocking = checks.filter((c) => c.level === "error" && c.id !== "optin");
+  const blocking = checks.filter((c) => c.level === "error" && c.id !== "optin" && c.id !== "platform");
+  const networkLive = platform.network === "subscribed";
+  const visible = store.ondcEnabled && networkLive && blocking.length === 0;
   const canList = platform.enabled && store.status === "approved";
   const cantListWhy = !platform.enabled
     ? "ONDC isn't switched on for Storaa yet."
@@ -185,7 +189,9 @@ export default function OndcNetworkPage() {
       <section className="vd-hero">
         <div className="vd-hero-body">
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap", marginBottom: "0.35rem" }}>
-            <Badge tone={store.ondcEnabled ? "ok" : "neutral"} dot pulse={store.ondcEnabled}>{store.ondcEnabled ? "Live on ONDC" : "Not listed"}</Badge>
+            <Badge tone={visible ? "ok" : store.ondcEnabled ? "warn" : "neutral"} dot pulse={visible}>
+              {visible ? "Live on ONDC" : store.ondcEnabled ? "Switched on · not visible to buyers yet" : "Off"}
+            </Badge>
             <Badge tone="purple">{platform.environment}</Badge>
           </div>
           <h2>Sell on the ONDC network</h2>
@@ -197,21 +203,54 @@ export default function OndcNetworkPage() {
         <Switch
           checked={store.ondcEnabled}
           disabled={busy || !canList}
-          onChange={setListing}
-          label={store.ondcEnabled ? "Listed" : "List my store"}
+          onChange={(next) => (next ? setListing(true) : setConfirmOff(true))}
+          label={store.ondcEnabled ? "On" : "Turn on ONDC"}
         />
         {cantListWhy && <p className="vd-sub" style={{ flexBasis: "100%", margin: 0 }}>{cantListWhy}</p>}
       </section>
 
-      {!platform.enabled && (
-        <div className="vd-note vd-note-warn">ONDC is not switched on for this Storaa installation yet. You can prepare your catalog now; listing opens once the platform is connected.</div>
+      {!networkLive && (
+        <div className="vd-note vd-note-warn">
+          <strong>Buyers can&apos;t see any Storaa store on ONDC yet.</strong> {checks.find((c) => c.id === "platform")?.detail}
+        </div>
       )}
       {platform.enabled && blocking.length > 0 && (
         <div className="vd-note vd-note-warn">
-          {store.ondcEnabled ? "You're listed, but buyers can't see your store until you fix: " : "Before you go live, fix: "}
-          <strong>{blocking.map((b) => b.label).join(", ")}</strong>.
+          {store.ondcEnabled ? "Your store is switched on, but buyers can't see it until you fix: " : "Before you turn it on, fix: "}
+          <strong>{blocking.map((b) => b.label).join(", ")}</strong>. Use the buttons in the checklist below.
         </div>
       )}
+
+      <details className="vd-card" open={!store.ondcEnabled}>
+        <summary style={{ cursor: "pointer", fontWeight: 700 }}>What is ONDC, and should I turn it on?</summary>
+        <div className="vd-grid vd-grid-3" style={{ marginTop: "0.9rem" }}>
+          <div>
+            <div className="vd-check-title">What it is</div>
+            <p className="vd-check-detail">
+              ONDC (Open Network for Digital Commerce) is a Government of India–backed network that connects shops to many shopping apps at once.
+              Turning it on lets shoppers on those apps find {store.name} and order for pickup.
+            </p>
+          </div>
+          <div>
+            <div className="vd-check-title">What you get</div>
+            <ul className="vd-check-detail" style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              <li>More customers, from apps you don&apos;t have to join one by one</li>
+              <li>Same products, prices and stock as on Storaa — nothing to type twice</li>
+              <li>Customers pay you at the counter when they pick up</li>
+              <li>Stock is set aside the moment an order comes in, so you never oversell</li>
+            </ul>
+          </div>
+          <div>
+            <div className="vd-check-title">If you turn it off</div>
+            <ul className="vd-check-detail" style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              <li>Your shop stops showing on ONDC apps straight away</li>
+              <li>Orders you already have stay in ONDC Orders so you can finish them</li>
+              <li>Storaa, customer holds and your POS / billing sync keep working exactly as before</li>
+              <li>You can turn it back on any time</li>
+            </ul>
+          </div>
+        </div>
+      </details>
 
       <div className="vd-stats">
         <Link className="vd-stat" href="/vendor/ondc-orders">
@@ -449,6 +488,28 @@ export default function OndcNetworkPage() {
         )}
       </section>
 
+      {confirmOff && (
+        <Dialog
+          title="Turn off ONDC for your store?"
+          onClose={() => setConfirmOff(false)}
+          actions={
+            <>
+              <VdButton onClick={() => setConfirmOff(false)}>Keep it on</VdButton>
+              <VdButton variant="primary" style={{ background: "var(--vd-err)", borderColor: "var(--vd-err)" }} loading={busy} onClick={() => setListing(false)}>
+                Turn off
+              </VdButton>
+            </>
+          }
+        >
+          <p className="vd-sub">
+            Shoppers on ONDC apps won&apos;t be able to find or order from {store.name}.{" "}
+            {stats.open > 0
+              ? <>You still have <strong>{stats.open} open ONDC order{stats.open > 1 ? "s" : ""}</strong> — they stay in ONDC Orders so you can pack and hand them over as normal.</>
+              : "You have no open ONDC orders."}{" "}
+            Storaa and your POS sync are not affected.
+          </p>
+        </Dialog>
+      )}
       {node}
     </div>
   );

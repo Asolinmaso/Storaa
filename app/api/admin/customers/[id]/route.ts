@@ -46,7 +46,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const user = await User.findOneAndUpdate(
     { _id: params.id, role: "customer" },
     { isBlocked: action === "block" },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (!user) return NextResponse.json({ code: "NOT_FOUND" }, { status: 404 });
   return NextResponse.json({ status: user.isBlocked ? "Blocked" : "Active" });

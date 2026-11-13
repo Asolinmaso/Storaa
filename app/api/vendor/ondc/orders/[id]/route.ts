@@ -49,7 +49,16 @@ export async function POST(
     return NextResponse.json(
       {
         code: "INVALID_STATE",
-        message: `Order is ${order.state} / ${order.fulfillmentState}; "${action}" is not allowed now.`,
+        message:
+          order.state === "Cancelled"
+            ? "This order was already cancelled."
+            : order.state === "Completed"
+              ? "This order is already completed."
+              : action === "picked_up" && order.fulfillmentState === "Pending"
+                ? "Mark the order as packed first."
+                : action === "pack" && order.fulfillmentState === "Packed"
+                  ? "This order is already packed."
+                  : "This order has changed. Refresh the page to see its latest status.",
       },
       { status: 409 }
     );

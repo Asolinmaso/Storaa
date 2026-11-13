@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import Hold from "@/models/Hold";
 import Store from "@/models/Store";
 import User from "@/models/User";
+import { expireStaleHolds } from "@/lib/holds";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,9 @@ export async function GET() {
   await connectDB();
   const store = await Store.findOne({ ownerId: session.userId }).select("_id");
   if (!store) return NextResponse.json({ holds: [] });
+
+  // Unpaid holds nobody collected give their stock back the next time the vendor looks.
+  await expireStaleHolds({ storeId: store._id }).catch((err) => console.error("Hold expiry sweep failed:", err));
 
   const holds = await Hold.find({ storeId: store._id }).sort({ createdAt: -1 }).limit(200).lean();
   const users = await User.find({ _id: { $in: holds.map((h) => h.userId) } })
